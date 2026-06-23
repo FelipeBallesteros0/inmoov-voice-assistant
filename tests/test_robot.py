@@ -9,6 +9,7 @@ from voice_assistant.robot import (
     move_robot_finger,
     run_robot_routine,
     run_robot_sequence,
+    set_robot_joints,
 )
 
 
@@ -59,6 +60,70 @@ class RobotTest(unittest.TestCase):
         self.assertEqual(fake.writes, [b"ROBOT STATUS\n"])
         self.assertTrue(fake.reset_called)
         self.assertTrue(fake.flushed)
+
+    def test_set_robot_joints_sends_compact_serial_command(self) -> None:
+        fake = _FakeSerial(responses=[b"OK JOINTS 2\n"])
+        serial_module = mock.Mock()
+        serial_module.Serial.return_value = fake
+
+        with mock.patch.object(robot, "serial", serial_module):
+            with mock.patch.object(robot.Path, "exists", return_value=True):
+                with mock.patch.object(robot.time, "sleep"):
+                    with mock.patch.dict(os.environ, {"ROBOT_SERIAL_PORT": "/dev/test-robot"}):
+                        result = set_robot_joints(
+                            [
+                                {"joint": "cabeza", "angle_degrees": 90},
+                                {"joint": "indice_der", "angle_degrees": 40},
+                            ]
+                        )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["command"], "ROBOT JOINTS 6:90 17:40")
+        self.assertEqual(result["port"], "/dev/test-robot")
+        self.assertEqual(result["response"], "OK JOINTS 2")
+        self.assertEqual(
+            result["joints_moved"],
+            [
+                {"joint": "cabeza", "index": 6, "angle_degrees": 90},
+                {"joint": "indice_der", "index": 17, "angle_degrees": 40},
+            ],
+        )
+        self.assertEqual(fake.writes, [b"ROBOT JOINTS 6:90 17:40\n"])
+
+    def test_set_robot_joints_normalizes_joint_names(self) -> None:
+        fake = _FakeSerial(responses=[b"OK JOINTS 1\n"])
+        serial_module = mock.Mock()
+        serial_module.Serial.return_value = fake
+
+        with mock.patch.object(robot, "serial", serial_module):
+            with mock.patch.object(robot.Path, "exists", return_value=True):
+                with mock.patch.object(robot.time, "sleep"):
+                    with mock.patch.dict(os.environ, {"ROBOT_SERIAL_PORT": "/dev/test-robot"}):
+                        result = set_robot_joints([{"joint": "lat izq", "angle_degrees": 100}])
+
+        self.assertEqual(result["command"], "ROBOT JOINTS 0:100")
+        self.assertEqual(fake.writes, [b"ROBOT JOINTS 0:100\n"])
+
+    def test_set_robot_joints_rejects_duplicate_joint(self) -> None:
+        with self.assertRaises(RobotError):
+            set_robot_joints(
+                [
+                    {"joint": "cabeza", "angle_degrees": 90},
+                    {"joint": "cabeza", "angle_degrees": 100},
+                ]
+            )
+
+    def test_set_robot_joints_rejects_unknown_joint(self) -> None:
+        with self.assertRaises(RobotError):
+            set_robot_joints([{"joint": "codo_der", "angle_degrees": 90}])
+
+    def test_set_robot_joints_rejects_out_of_range_angle(self) -> None:
+        with self.assertRaises(RobotError):
+            set_robot_joints([{"joint": "lat_izq", "angle_degrees": 70}])
+
+    def test_set_robot_joints_rejects_non_integer_angle(self) -> None:
+        with self.assertRaises(RobotError):
+            set_robot_joints([{"joint": "cabeza", "angle_degrees": 90.5}])
 
     def test_run_robot_routine_normalizes_name(self) -> None:
         fake = _FakeSerial(responses=[b"OK ROUTINE head_left\n"])

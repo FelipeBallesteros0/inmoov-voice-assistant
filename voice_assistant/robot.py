@@ -105,6 +105,43 @@ class RobotCommandResult:
     response: str
 
 
+@dataclass(frozen=True)
+class RobotJoint:
+    name: str
+    index: int
+    min_angle: int
+    max_angle: int
+    home_angle: int
+
+
+ROBOT_JOINTS = (
+    RobotJoint("lat_izq", 0, 80, 135, 135),
+    RobotJoint("lat_der", 1, 70, 123, 123),
+    RobotJoint("rotor_izq", 2, 10, 80, 80),
+    RobotJoint("rotor_der", 3, 10, 90, 90),
+    RobotJoint("bicep_izq", 4, 75, 140, 90),
+    RobotJoint("bicep_der", 5, 90, 140, 90),
+    RobotJoint("cabeza", 6, 10, 170, 90),
+    RobotJoint("mandibula", 7, 10, 70, 10),
+    RobotJoint("cuello", 8, 50, 180, 60),
+    RobotJoint("cuello_izq", 9, 70, 150, 110),
+    RobotJoint("cuello_der", 10, 50, 130, 90),
+    RobotJoint("pulgar_izq", 11, 0, 140, 140),
+    RobotJoint("indice_izq", 12, 0, 140, 140),
+    RobotJoint("medio_izq", 13, 0, 160, 160),
+    RobotJoint("anular_izq", 14, 0, 130, 130),
+    RobotJoint("meni_izq", 15, 0, 130, 130),
+    RobotJoint("pulgar_der", 16, 0, 120, 120),
+    RobotJoint("indice_der", 17, 0, 120, 120),
+    RobotJoint("medio_der", 18, 0, 130, 130),
+    RobotJoint("anular_der", 19, 0, 170, 170),
+    RobotJoint("meni_der", 20, 0, 120, 120),
+)
+ROBOT_JOINT_NAMES = tuple(joint.name for joint in ROBOT_JOINTS)
+MAX_ROBOT_JOINT_CHANGES = len(ROBOT_JOINTS)
+_ROBOT_JOINTS_BY_NAME = {joint.name: joint for joint in ROBOT_JOINTS}
+
+
 def run_robot_routine(routine_name: str) -> RobotCommandResult:
     routine = _normalize_routine(routine_name)
     return _send_robot_command(f"ROBOT ROUTINE {routine}", expected_prefix=f"OK ROUTINE {routine}")
@@ -122,6 +159,70 @@ def move_robot_finger(hand: str, finger: str, position: str) -> RobotCommandResu
 def run_robot_sequence(actions: list[dict[str, Any]]) -> dict:
     commands = _normalize_robot_sequence(actions)
     return _send_robot_command_sequence(commands)
+
+
+def set_robot_joints(joints: list[dict[str, Any]]) -> dict:
+    changes = _normalize_joint_changes(joints)
+    command = "ROBOT JOINTS " + " ".join(
+        f"{change['index']}:{change['angle_degrees']}" for change in changes
+    )
+    result = _send_robot_command(command, expected_prefix=f"OK JOINTS {len(changes)}")
+    return {
+        "ok": result.ok,
+        "command": result.command,
+        "port": result.port,
+        "response": result.response,
+        "joints_moved": changes,
+    }
+
+
+def _normalize_joint_changes(joints: list[dict[str, Any]]) -> list[dict[str, int | str]]:
+    if not isinstance(joints, list):
+        raise RobotError("Las consignas articulares deben ser una lista.")
+    if not joints:
+        raise RobotError("La lista de consignas articulares no puede estar vacia.")
+    if len(joints) > MAX_ROBOT_JOINT_CHANGES:
+        raise RobotError(f"Se aceptan maximo {MAX_ROBOT_JOINT_CHANGES} articulaciones por llamada.")
+
+    seen: set[str] = set()
+    changes: list[dict[str, int | str]] = []
+    for index, joint_change in enumerate(joints, start=1):
+        if not isinstance(joint_change, dict):
+            raise RobotError(f"La consigna articular {index} no es valida.")
+        joint_name = _normalize_joint_name(joint_change.get("joint", ""))
+        if joint_name in seen:
+            raise RobotError(f"Articulacion duplicada: {joint_name}.")
+        seen.add(joint_name)
+
+        angle = _normalize_joint_angle(joint_change.get("angle_degrees"), joint_name, index)
+        joint = _ROBOT_JOINTS_BY_NAME[joint_name]
+        if angle < joint.min_angle or angle > joint.max_angle:
+            raise RobotError(
+                f"Angulo fuera de rango para {joint_name}: {angle}. "
+                f"Permitido: {joint.min_angle}-{joint.max_angle}."
+            )
+        changes.append(
+            {
+                "joint": joint.name,
+                "index": joint.index,
+                "angle_degrees": angle,
+            }
+        )
+    return changes
+
+
+def _normalize_joint_name(value: Any) -> str:
+    joint_name = "_".join(_normalize_text(str(value)).replace("-", "_").split())
+    if joint_name not in _ROBOT_JOINTS_BY_NAME:
+        allowed = ", ".join(ROBOT_JOINT_NAMES)
+        raise RobotError(f"Articulacion desconocida: {value}. Permitidas: {allowed}")
+    return joint_name
+
+
+def _normalize_joint_angle(value: Any, joint_name: str, index: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise RobotError(f"angle_degrees invalido en la consigna {index} ({joint_name}).")
+    return value
 
 
 def _finger_command(hand: str, finger: str, position: str) -> tuple[str, str]:

@@ -2,6 +2,9 @@
 
 const long BAUD_RATE = 115200;
 const int JOINT_COUNT = 21;
+const int MAX_COMMAND_LENGTH = 220;
+const int JOINT_MOVE_STEPS = 45;
+const int JOINT_MOVE_DELAY_MS = 25;
 
 const char* JOINT_NAMES[JOINT_COUNT] = {
   "lat_izq", "lat_der", "rotor_izq", "rotor_der", "bicep_izq", "bicep_der",
@@ -58,7 +61,7 @@ bool runningRoutine = false;
 
 void setup() {
   Serial.begin(BAUD_RATE);
-  inputLine.reserve(80);
+  inputLine.reserve(MAX_COMMAND_LENGTH);
   initializePositionMemory();
   Serial.println("READY");
 }
@@ -124,6 +127,116 @@ void moveSingle(int joint, int target, int steps, int delayMs) {
   const int joints[] = { joint };
   const int targets[] = { target };
   moveGroup(joints, targets, 1, steps, delayMs);
+}
+
+bool parseInteger(String text, int &value) {
+  text.trim();
+  if (text.length() == 0) {
+    return false;
+  }
+  int start = 0;
+  if (text.charAt(0) == '-') {
+    if (text.length() == 1) {
+      return false;
+    }
+    start = 1;
+  }
+  for (int i = start; i < text.length(); i++) {
+    if (!isDigit(text.charAt(i))) {
+      return false;
+    }
+  }
+  value = text.toInt();
+  return true;
+}
+
+bool parseJointPair(String token, int &joint, int &angle, String &error) {
+  token.trim();
+  int separator = token.indexOf(':');
+  if (separator <= 0 || separator == token.length() - 1) {
+    error = "bad_joint_command";
+    return false;
+  }
+
+  String jointText = token.substring(0, separator);
+  String angleText = token.substring(separator + 1);
+  if (!parseInteger(jointText, joint) || !parseInteger(angleText, angle)) {
+    error = "bad_joint_command";
+    return false;
+  }
+  if (joint < 0 || joint >= JOINT_COUNT) {
+    error = "unknown_joint";
+    return false;
+  }
+  if (angle < MIN_ANGLE[joint] || angle > MAX_ANGLE[joint]) {
+    error = "joint_out_of_range";
+    return false;
+  }
+  return true;
+}
+
+bool parseJointCommand(String payload, int joints[], int targets[], int &count, String &error) {
+  payload.trim();
+  if (payload.length() == 0) {
+    error = "bad_joint_command";
+    return false;
+  }
+
+  bool used[JOINT_COUNT] = { false };
+  count = 0;
+  while (payload.length() > 0) {
+    int space = payload.indexOf(' ');
+    String token;
+    if (space < 0) {
+      token = payload;
+      payload = "";
+    } else {
+      token = payload.substring(0, space);
+      payload = payload.substring(space + 1);
+    }
+    token.trim();
+    if (token.length() == 0) {
+      continue;
+    }
+    if (count >= JOINT_COUNT) {
+      error = "too_many_joints";
+      return false;
+    }
+
+    int joint = -1;
+    int angle = -1;
+    if (!parseJointPair(token, joint, angle, error)) {
+      return false;
+    }
+    if (used[joint]) {
+      error = "duplicate_joint";
+      return false;
+    }
+
+    used[joint] = true;
+    joints[count] = joint;
+    targets[count] = angle;
+    count++;
+  }
+
+  if (count == 0) {
+    error = "bad_joint_command";
+    return false;
+  }
+  return true;
+}
+
+bool runJointCommand(String payload, int &count, String &error) {
+  int joints[JOINT_COUNT];
+  int targets[JOINT_COUNT];
+  if (!parseJointCommand(payload, joints, targets, count, error)) {
+    return false;
+  }
+
+  runningRoutine = true;
+  moveGroup(joints, targets, count, JOINT_MOVE_STEPS, JOINT_MOVE_DELAY_MS);
+  runningRoutine = false;
+  return true;
 }
 
 int resolveFingerJoint(String hand, String finger) {
@@ -199,7 +312,7 @@ void readSerialCommands() {
       inputLine = "";
       continue;
     }
-    if (inputLine.length() < 79) {
+    if (inputLine.length() < MAX_COMMAND_LENGTH - 1) {
       inputLine += ch;
     } else {
       inputLine = "";
@@ -218,6 +331,18 @@ void processCommand(String line) {
   if (line == "robot stop") {
     runningRoutine = false;
     Serial.println("OK STOP");
+    return;
+  }
+  if (line.startsWith("robot joints ")) {
+    int count = 0;
+    String error;
+    if (runJointCommand(line.substring(13), count, error)) {
+      Serial.print("OK JOINTS ");
+      Serial.println(count);
+    } else {
+      Serial.print("ERR ");
+      Serial.println(error);
+    }
     return;
   }
   if (line.startsWith("robot finger ")) {

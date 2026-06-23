@@ -9,18 +9,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .alarms import cancel_alarm, list_alarms, schedule_alarm
-from .robot import (
-    ROBOT_FINGER_POSITIONS,
-    ROBOT_FINGERS,
-    ROBOT_HANDS,
-    ROBOT_ROUTINES,
-    ROBOT_SEQUENCE_ACTION_TYPES,
-    ROBOT_SEQUENCE_NONE,
-    get_robot_status,
-    move_robot_finger,
-    run_robot_routine,
-    run_robot_sequence,
-)
+from .robot import ROBOT_JOINT_NAMES, get_robot_status, set_robot_joints
 from .servo import move_servo, run_servo_sequence
 
 
@@ -210,26 +199,8 @@ def tool_schemas() -> list[dict]:
         },
         {
             "type": "function",
-            "name": "run_robot_routine",
-            "description": "Ejecuta una rutina segura predefinida del robot InMoov conectado al Arduino Mega.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "routine_name": {
-                        "type": "string",
-                        "enum": list(ROBOT_ROUTINES),
-                        "description": "Rutina segura a ejecutar en el robot.",
-                    }
-                },
-                "required": ["routine_name"],
-                "additionalProperties": False,
-            },
-            "strict": True,
-        },
-        {
-            "type": "function",
             "name": "get_robot_status",
-            "description": "Consulta si el robot InMoov conectado al Arduino Mega esta disponible, detenido o ejecutando una rutina.",
+            "description": "Consulta si el robot InMoov conectado al Arduino Mega esta disponible, detenido o ejecutando un movimiento.",
             "parameters": {
                 "type": "object",
                 "properties": {},
@@ -240,95 +211,40 @@ def tool_schemas() -> list[dict]:
         },
         {
             "type": "function",
-            "name": "move_robot_finger",
+            "name": "set_robot_joints",
             "description": (
-                "Mueve un dedo individual del robot InMoov. Usa position=open para abrir o levantar "
-                "un dedo, y position=closed para cerrar, bajar o doblar un dedo."
+                "Mueve una o mas articulaciones del robot InMoov usando pares nombre-angulo. "
+                "Las articulaciones omitidas mantienen su posicion actual. Usa get_robot_status "
+                "si necesitas comprobar disponibilidad antes de mover."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "hand": {
-                        "type": "string",
-                        "enum": list(ROBOT_HANDS),
-                        "description": "Mano: left para izquierda, right para derecha.",
-                    },
-                    "finger": {
-                        "type": "string",
-                        "enum": list(ROBOT_FINGERS),
-                        "description": "Dedo: thumb, index, middle, ring o pinky.",
-                    },
-                    "position": {
-                        "type": "string",
-                        "enum": list(ROBOT_FINGER_POSITIONS),
-                        "description": "open para levantar/abrir; closed para cerrar/bajar.",
-                    },
-                },
-                "required": ["hand", "finger", "position"],
-                "additionalProperties": False,
-            },
-            "strict": True,
-        },
-        {
-            "type": "function",
-            "name": "run_robot_sequence",
-            "description": (
-                "Ejecuta varias acciones del robot InMoov en una sola llamada. Usala para ordenes "
-                "complejas con varios dedos, manos, cabeza o rutinas, en vez de llamar herramientas separadas."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "actions": {
+                    "joints": {
                         "type": "array",
                         "minItems": 1,
-                        "maxItems": 20,
+                        "maxItems": 21,
                         "items": {
                             "type": "object",
                             "properties": {
-                                "action_type": {
+                                "joint": {
                                     "type": "string",
-                                    "enum": list(ROBOT_SEQUENCE_ACTION_TYPES),
+                                    "enum": list(ROBOT_JOINT_NAMES),
+                                    "description": "Nombre de la articulacion segun el firmware del InMoov.",
                                 },
-                                "routine_name": {
-                                    "type": "string",
-                                    "enum": [ROBOT_SEQUENCE_NONE, *ROBOT_ROUTINES],
-                                    "description": "Rutina si action_type=routine; usa none si action_type=finger.",
-                                },
-                                "hand": {
-                                    "type": "string",
-                                    "enum": [ROBOT_SEQUENCE_NONE, *ROBOT_HANDS],
-                                    "description": "Mano si action_type=finger; usa none si action_type=routine.",
-                                },
-                                "finger": {
-                                    "type": "string",
-                                    "enum": [ROBOT_SEQUENCE_NONE, *ROBOT_FINGERS],
-                                    "description": "Dedo si action_type=finger; usa none si action_type=routine.",
-                                },
-                                "position": {
-                                    "type": "string",
-                                    "enum": [ROBOT_SEQUENCE_NONE, *ROBOT_FINGER_POSITIONS],
-                                    "description": "open o closed si action_type=finger; usa none si action_type=routine.",
-                                },
-                                "delay_after_seconds": {
-                                    "type": "number",
+                                "angle_degrees": {
+                                    "type": "integer",
                                     "minimum": 0,
-                                    "maximum": 10,
+                                    "maximum": 180,
+                                    "description": "Angulo absoluto en grados; se valida contra el rango seguro de cada articulacion.",
                                 },
                             },
-                            "required": [
-                                "action_type",
-                                "routine_name",
-                                "hand",
-                                "finger",
-                                "position",
-                                "delay_after_seconds",
-                            ],
+                            "required": ["joint", "angle_degrees"],
                             "additionalProperties": False,
                         },
                     }
                 },
-                "required": ["actions"],
+                "required": ["joints"],
                 "additionalProperties": False,
             },
             "strict": True,
@@ -365,14 +281,6 @@ def call_tool(name: str, arguments: str | dict) -> str:
             }
         elif name == "run_servo_sequence":
             result = run_servo_sequence(args["steps"], args["repeat"])
-        elif name == "run_robot_routine":
-            robot_result = run_robot_routine(str(args["routine_name"]))
-            result = {
-                "ok": robot_result.ok,
-                "command": robot_result.command,
-                "port": robot_result.port,
-                "response": robot_result.response,
-            }
         elif name == "get_robot_status":
             robot_result = get_robot_status()
             result = {
@@ -381,20 +289,8 @@ def call_tool(name: str, arguments: str | dict) -> str:
                 "port": robot_result.port,
                 "response": robot_result.response,
             }
-        elif name == "move_robot_finger":
-            robot_result = move_robot_finger(
-                str(args["hand"]),
-                str(args["finger"]),
-                str(args["position"]),
-            )
-            result = {
-                "ok": robot_result.ok,
-                "command": robot_result.command,
-                "port": robot_result.port,
-                "response": robot_result.response,
-            }
-        elif name == "run_robot_sequence":
-            result = run_robot_sequence(args["actions"])
+        elif name == "set_robot_joints":
+            result = set_robot_joints(args["joints"])
         else:
             result = {"error": f"Herramienta desconocida: {name}"}
     except Exception as exc:

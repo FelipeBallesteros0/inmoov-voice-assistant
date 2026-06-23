@@ -49,7 +49,22 @@ La API key se resuelve en este orden:
 
 ## Function calling local
 
-El asistente expone herramientas locales para hora/fecha, calculadora simple, notas, alarmas y servo. Para el servo, el Arduino debe tener cargado el sketch de `arduino/servo_controller`.
+El asistente expone herramientas locales para hora/fecha, calculadora simple, notas, alarmas, servo de prueba e InMoov. Para el robot InMoov, el modelo solo ve `get_robot_status` y `set_robot_joints`: una funcion general que recibe pares `joint` + `angle_degrees` y mueve solo las articulaciones listadas. Las rutinas de dedos/manos quedan como comandos legacy del firmware, pero no se publican al LLM.
+
+Ejemplo de argumentos para `set_robot_joints`:
+
+```json
+{
+  "joints": [
+    {"joint": "cabeza", "angle_degrees": 90},
+    {"joint": "indice_der", "angle_degrees": 40}
+  ]
+}
+```
+
+La Raspberry valida nombres duplicados, articulaciones desconocidas y limites angulares antes de escribir por serial. El comando enviado al Arduino Mega usa indices compactos, por ejemplo `ROBOT JOINTS 6:90 17:40`, y espera una respuesta `OK JOINTS 2`.
+
+Articulaciones controladas por el firmware actual: `lat_izq`, `lat_der`, `rotor_izq`, `rotor_der`, `bicep_izq`, `bicep_der`, `cabeza`, `mandibula`, `cuello`, `cuello_izq`, `cuello_der`, `pulgar_izq`, `indice_izq`, `medio_izq`, `anular_izq`, `meni_izq`, `pulgar_der`, `indice_der`, `medio_der`, `anular_der`, `meni_der`.
 
 ### Servo en Arduino
 
@@ -77,6 +92,31 @@ mueve el motor a 90 grados
 ```
 
 La herramienta valida angulos enteros entre `0` y `180` grados y envia `SERVO <angulo>` por serial.
+
+### InMoov en Arduino Mega
+
+Configuracion por defecto:
+
+```bash
+export ROBOT_SERIAL_PORT='/dev/ttyUSB0'
+export ROBOT_SERIAL_BAUDRATE='115200'
+```
+
+Carga del sketch en un Arduino Mega:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+arduino-cli core install arduino:avr
+arduino-cli lib install Servo
+arduino-cli compile --fqbn arduino:avr:mega arduino/inmoov_robot_controller
+arduino-cli upload -p /dev/ttyUSB0 --fqbn arduino:avr:mega arduino/inmoov_robot_controller
+```
+
+Ejemplo de comando serial directo:
+
+```text
+ROBOT JOINTS 6:90 17:40
+```
 
 ## Ejecucion
 

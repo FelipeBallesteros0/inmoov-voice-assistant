@@ -70,16 +70,23 @@ class ToolsTest(unittest.TestCase):
             },
         )
 
-    def test_tool_schemas_include_move_servo(self) -> None:
+    def test_tool_schemas_include_servo_and_general_robot_tools(self) -> None:
         from voice_assistant.tools import tool_schemas
 
-        names = {tool["name"] for tool in tool_schemas()}
+        schemas = tool_schemas()
+        names = {tool["name"] for tool in schemas}
         self.assertIn("move_servo", names)
         self.assertIn("run_servo_sequence", names)
-        self.assertIn("run_robot_routine", names)
         self.assertIn("get_robot_status", names)
-        self.assertIn("move_robot_finger", names)
-        self.assertIn("run_robot_sequence", names)
+        self.assertIn("set_robot_joints", names)
+        self.assertNotIn("run_robot_routine", names)
+        self.assertNotIn("move_robot_finger", names)
+        self.assertNotIn("run_robot_sequence", names)
+
+        set_joints_schema = next(tool for tool in schemas if tool["name"] == "set_robot_joints")
+        joints_schema = set_joints_schema["parameters"]["properties"]["joints"]
+        self.assertEqual(joints_schema["maxItems"], 21)
+        self.assertIn("cabeza", joints_schema["items"]["properties"]["joint"]["enum"])
 
     def test_run_servo_sequence_tool_returns_sequence_result(self) -> None:
         fake_result = {
@@ -105,26 +112,6 @@ class ToolsTest(unittest.TestCase):
 
         self.assertEqual(result, fake_result)
 
-    def test_run_robot_routine_tool_returns_robot_result(self) -> None:
-        fake_result = RobotCommandResult(
-            ok=True,
-            command="ROBOT ROUTINE head_left",
-            port="/dev/test-robot",
-            response="OK ROUTINE head_left",
-        )
-        with mock.patch("voice_assistant.tools.run_robot_routine", return_value=fake_result):
-            result = json.loads(call_tool("run_robot_routine", {"routine_name": "head_left"}))
-
-        self.assertEqual(
-            result,
-            {
-                "ok": True,
-                "command": "ROBOT ROUTINE head_left",
-                "port": "/dev/test-robot",
-                "response": "OK ROUTINE head_left",
-            },
-        )
-
     def test_get_robot_status_tool_returns_robot_result(self) -> None:
         fake_result = RobotCommandResult(
             ok=True,
@@ -145,63 +132,35 @@ class ToolsTest(unittest.TestCase):
             },
         )
 
-    def test_move_robot_finger_tool_returns_robot_result(self) -> None:
-        fake_result = RobotCommandResult(
-            ok=True,
-            command="ROBOT FINGER right index open",
-            port="/dev/test-robot",
-            response="OK FINGER right index open",
-        )
-        with mock.patch("voice_assistant.tools.move_robot_finger", return_value=fake_result):
-            result = json.loads(
-                call_tool(
-                    "move_robot_finger",
-                    {"hand": "right", "finger": "index", "position": "open"},
-                )
-            )
-
-        self.assertEqual(
-            result,
-            {
-                "ok": True,
-                "command": "ROBOT FINGER right index open",
-                "port": "/dev/test-robot",
-                "response": "OK FINGER right index open",
-            },
-        )
-
-    def test_run_robot_sequence_tool_returns_sequence_result(self) -> None:
+    def test_set_robot_joints_tool_returns_joint_result(self) -> None:
         fake_result = {
             "ok": True,
+            "command": "ROBOT JOINTS 6:90 17:40",
             "port": "/dev/test-robot",
-            "actions_executed": 2,
-            "results": [
-                {"command": "ROBOT FINGER right index open", "response": "OK FINGER right index open"},
-                {"command": "ROBOT ROUTINE head_center", "response": "OK ROUTINE head_center"},
+            "response": "OK JOINTS 2",
+            "joints_moved": [
+                {"joint": "cabeza", "index": 6, "angle_degrees": 90},
+                {"joint": "indice_der", "index": 17, "angle_degrees": 40},
             ],
         }
-        actions = [
-            {
-                "action_type": "finger",
-                "routine_name": "none",
-                "hand": "right",
-                "finger": "index",
-                "position": "open",
-                "delay_after_seconds": 0,
-            },
-            {
-                "action_type": "routine",
-                "routine_name": "head_center",
-                "hand": "none",
-                "finger": "none",
-                "position": "none",
-                "delay_after_seconds": 0,
-            },
+        joints = [
+            {"joint": "cabeza", "angle_degrees": 90},
+            {"joint": "indice_der", "angle_degrees": 40},
         ]
-        with mock.patch("voice_assistant.tools.run_robot_sequence", return_value=fake_result):
-            result = json.loads(call_tool("run_robot_sequence", {"actions": actions}))
+        with mock.patch("voice_assistant.tools.set_robot_joints", return_value=fake_result):
+            result = json.loads(call_tool("set_robot_joints", {"joints": joints}))
 
         self.assertEqual(result, fake_result)
+
+    def test_old_robot_action_tools_are_not_dispatchable(self) -> None:
+        result = json.loads(
+            call_tool(
+                "move_robot_finger",
+                {"hand": "right", "finger": "index", "position": "open"},
+            )
+        )
+
+        self.assertEqual(result, {"error": "Herramienta desconocida: move_robot_finger"})
 
 
 if __name__ == "__main__":
