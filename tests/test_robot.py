@@ -19,12 +19,18 @@ class _FakeSerial:
         self.writes = []
         self.reset_called = False
         self.flushed = False
+        self.is_open = True
+        self.closed = False
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc, tb):
         return False
+
+    def close(self):
+        self.is_open = False
+        self.closed = True
 
     def reset_input_buffer(self):
         self.reset_called = True
@@ -42,6 +48,12 @@ class _FakeSerial:
 
 
 class RobotTest(unittest.TestCase):
+    def setUp(self) -> None:
+        robot.reset_robot_connection()
+
+    def tearDown(self) -> None:
+        robot.reset_robot_connection()
+
     def test_get_robot_status_sends_serial_command(self) -> None:
         fake = _FakeSerial(responses=[b"READY\n", b"OK STATUS idle\n"])
         serial_module = mock.Mock()
@@ -232,6 +244,29 @@ class RobotTest(unittest.TestCase):
                     with mock.patch.dict(os.environ, {"ROBOT_SERIAL_PORT": "/dev/test-robot"}):
                         with self.assertRaises(RobotError):
                             run_robot_routine("rest")
+
+
+    def test_separate_commands_reuse_one_serial_connection(self) -> None:
+        # Regresion: el Arduino se resetea por DTR cada vez que se ABRE el puerto.
+        # Al resetear, el firmware deja los servos sueltos y currentAngle=HOME, asi
+        # que las articulaciones "vuelven a home" despues de cada accion. Dos
+        # acciones separadas deben compartir UNA sola conexion (sin reabrir/resetear).
+        fake = _FakeSerial(responses=[b"OK JOINTS 1\n", b"OK STATUS idle\n"])
+        serial_module = mock.Mock()
+        serial_module.Serial.return_value = fake
+
+        with mock.patch.object(robot, "serial", serial_module):
+            with mock.patch.object(robot.Path, "exists", return_value=True):
+                with mock.patch.object(robot.time, "sleep"):
+                    with mock.patch.dict(os.environ, {"ROBOT_SERIAL_PORT": "/dev/test-robot"}):
+                        set_robot_joints([{"joint": "mandibula", "angle_degrees": 40}])
+                        get_robot_status()
+
+        self.assertEqual(serial_module.Serial.call_count, 1)
+        self.assertEqual(
+            fake.writes,
+            [b"ROBOT JOINTS 7:40\n", b"ROBOT STATUS\n"],
+        )
 
 
 if __name__ == "__main__":

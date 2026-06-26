@@ -91,6 +91,16 @@ DEFAULT_PORT_CANDIDATES = (
 )
 DEFAULT_BAUDRATE = 115200
 DEFAULT_TIMEOUT_SECONDS = 180.0
+DEFAULT_READY_DELAY_SECONDS = 2.5
+
+# El Arduino se resetea por DTR cada vez que se ABRE el puerto serial (comportamiento
+# del CH340 que no se puede evitar por software). Al resetear, el firmware re-ejecuta
+# setup(): deja los servos sueltos y currentAngle=HOME, de modo que las articulaciones
+# "vuelven a home" tras cada accion. Para evitarlo reutilizamos una sola conexion: la
+# placa se resetea una unica vez (en la primera apertura) y luego los servos quedan
+# attached sosteniendo su posicion entre comandos.
+_robot_handle = None
+_robot_handle_port: str | None = None
 
 
 class RobotError(RuntimeError):
@@ -335,6 +345,41 @@ def _send_robot_command(command: str, expected_prefix: str) -> RobotCommandResul
     )
 
 
+def reset_robot_connection() -> None:
+    """Cierra y olvida la conexion serial cacheada.
+
+    La proxima orden reabrira el puerto (lo que resetea el Arduino). Se llama tras un
+    fallo de E/S para reconectar limpio, o manualmente si se reconecta la placa.
+    """
+    global _robot_handle, _robot_handle_port
+    handle = _robot_handle
+    _robot_handle = None
+    _robot_handle_port = None
+    if handle is not None:
+        try:
+            handle.close()
+        except Exception:
+            pass
+
+
+def _get_robot_connection(port: str, baudrate: int, timeout: float, ready_delay: float):
+    """Devuelve una conexion serial persistente, reutilizando la abierta si existe."""
+    global _robot_handle, _robot_handle_port
+    handle = _robot_handle
+    if handle is not None and _robot_handle_port == port and getattr(handle, "is_open", True):
+        return handle
+
+    reset_robot_connection()
+    handle = serial.Serial(port, baudrate, timeout=timeout, write_timeout=timeout)
+    # Espera el arranque del firmware tras el reset por DTR. Solo ocurre en esta
+    # apertura inicial; las ordenes siguientes reutilizan la conexion sin resetear.
+    time.sleep(ready_delay)
+    handle.reset_input_buffer()
+    _robot_handle = handle
+    _robot_handle_port = port
+    return handle
+
+
 def _send_robot_command_sequence(commands: list[tuple[str, str, float]]) -> dict:
     if serial is None:
         raise RobotError("Falta instalar pyserial para controlar el robot.")
@@ -342,23 +387,22 @@ def _send_robot_command_sequence(commands: list[tuple[str, str, float]]) -> dict
     port = _resolve_robot_port()
     baudrate = int(os.getenv("ROBOT_SERIAL_BAUDRATE", str(DEFAULT_BAUDRATE)))
     timeout = float(os.getenv("ROBOT_SERIAL_TIMEOUT_SECONDS", str(DEFAULT_TIMEOUT_SECONDS)))
-    ready_delay = float(os.getenv("ROBOT_SERIAL_READY_DELAY_SECONDS", "2.5"))
+    ready_delay = float(os.getenv("ROBOT_SERIAL_READY_DELAY_SECONDS", str(DEFAULT_READY_DELAY_SECONDS)))
     results = []
 
     try:
-        with serial.Serial(port, baudrate, timeout=timeout, write_timeout=timeout) as handle:
-            time.sleep(ready_delay)
-            handle.reset_input_buffer()
-            for command, expected_prefix, delay_after_seconds in commands:
-                handle.write((command + "\n").encode("ascii"))
-                handle.flush()
-                response = _read_response(handle, expected_prefix)
-                results.append({"command": command, "response": response})
-                if delay_after_seconds:
-                    time.sleep(delay_after_seconds)
+        handle = _get_robot_connection(port, baudrate, timeout, ready_delay)
+        for command, expected_prefix, delay_after_seconds in commands:
+            handle.write((command + "\n").encode("ascii"))
+            handle.flush()
+            response = _read_response(handle, expected_prefix)
+            results.append({"command": command, "response": response})
+            if delay_after_seconds:
+                time.sleep(delay_after_seconds)
     except RobotError:
         raise
     except Exception as exc:
+        reset_robot_connection()
         raise RobotError(f"No pude comunicarme con el Arduino Mega en {port}: {exc}") from exc
 
     return {
