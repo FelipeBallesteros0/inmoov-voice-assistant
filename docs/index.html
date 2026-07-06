@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="es" data-lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>InMoov Voice Assistant — Voice-Driven Action Selection via Function Calling</title>
+<meta name="description" content="A recommissioned low-cost InMoov humanoid torso driven by voice: Silero VAD + Whisper ASR + LLM function calling on a Raspberry Pi 5, with a generalized joint-angle interface over 21 controlled joints.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b4f8a'/%3E%3Cg fill='%23fff'%3E%3Crect x='8' y='13' width='2.6' height='6' rx='1'/%3E%3Crect x='12.5' y='9' width='2.6' height='14' rx='1'/%3E%3Crect x='17' y='6' width='2.6' height='20' rx='1'/%3E%3Crect x='21.5' y='11' width='2.6' height='10' rx='1'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+  :root{
+    --paper:#ffffff; --panel:#f5f6f8; --panel-2:#eceef1;
+    --ink:#17212c; --muted:#5c6b7a; --faint:#8794a1;
+    --line:#dce1e7; --line-strong:#c3ccd5;
+    --navy:#0b4f8a; --navy-deep:#083a66; --amber:#a9700f;
+    --serif:'Iowan Old Style','Palatino Linotype','Book Antiqua',Palatino,Cambria,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --mono:'SFMono-Regular','JetBrains Mono','Cascadia Code',Menlo,Consolas,'Liberation Mono',monospace;
+    --wrap:1080px; --measure:760px;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--sans); font-size:17px; line-height:1.62;
+    text-rendering:optimizeLegibility; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:var(--wrap); margin:0 auto; padding:0 24px}
+  .measure{max-width:var(--measure)}
+  a{color:var(--navy); text-underline-offset:2px; text-decoration-thickness:1px}
+  a:hover{color:var(--navy-deep)}
+  code,kbd{font-family:var(--mono); font-size:.86em}
+  h1,h2,h3{font-family:var(--serif); font-weight:600; line-height:1.15; letter-spacing:-.005em}
+  :focus-visible{outline:2.5px solid var(--navy); outline-offset:3px; border-radius:3px}
+
+  /* ---- language toggle ---- */
+  html[data-lang="es"] .lang-en{display:none}
+  html[data-lang="en"] .lang-es{display:none}
+
+  /* ---------- nav ---------- */
+  .nav{position:sticky; top:0; z-index:50; background:rgba(255,255,255,.9);
+    backdrop-filter:saturate(1.6) blur(8px); border-bottom:1px solid var(--line)}
+  .nav-in{max-width:var(--wrap); margin:0 auto; padding:11px 24px;
+    display:flex; align-items:center; gap:20px}
+  .brand{display:flex; align-items:center; gap:10px; font-weight:600; letter-spacing:-.01em}
+  .brand .glyph{display:inline-flex; width:26px; height:26px; border-radius:6px;
+    background:var(--navy); flex:0 0 auto}
+  .brand .glyph svg{margin:auto}
+  .brand small{display:block; font-weight:500; color:var(--muted); font-size:11.5px; letter-spacing:.02em}
+  .nav-links{margin-left:auto; display:flex; align-items:center; gap:18px}
+  .nav-links a{color:var(--muted); text-decoration:none; font-size:14px; font-weight:500}
+  .nav-links a:hover{color:var(--ink)}
+  .nav-links .only-wide{display:inline}
+  .btn{display:inline-flex; align-items:center; gap:7px; font-family:var(--sans);
+    font-size:13.5px; font-weight:600; border-radius:7px; padding:7px 12px;
+    border:1px solid var(--line-strong); background:#fff; color:var(--ink);
+    cursor:pointer; text-decoration:none; transition:border-color .15s, background .15s}
+  .btn:hover{border-color:var(--navy); color:var(--navy)}
+  .btn-solid{background:var(--navy); border-color:var(--navy); color:#fff}
+  .btn-solid:hover{background:var(--navy-deep); border-color:var(--navy-deep); color:#fff}
+  #lang{min-width:44px; justify-content:center}
+
+  /* ---------- hero ---------- */
+  .hero{padding:64px 0 40px; border-bottom:1px solid var(--line)}
+  .hero-grid{display:grid; grid-template-columns:1.55fr 1fr; gap:48px; align-items:center}
+  .eyebrow{font-family:var(--sans); font-size:12.5px; font-weight:700; letter-spacing:.13em;
+    text-transform:uppercase; color:var(--navy)}
+  .hero h1{font-size:clamp(30px,4.4vw,46px); margin:16px 0 0}
+  .hero .sub{color:var(--muted); font-size:18px; margin:16px 0 0; max-width:38ch}
+  .byline{margin:22px 0 0; font-size:14px; color:var(--muted); line-height:1.5}
+  .byline .authors{color:var(--ink)}
+  .byline .aff{font-style:italic}
+  .grant{display:inline-block; margin-top:8px; font-size:12.5px; color:var(--faint)}
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin:24px 0 0; padding:0; list-style:none}
+  .chips li{font-size:12.5px; font-weight:600; color:var(--navy-deep);
+    background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:5px 11px}
+  .hero-cta{display:flex; flex-wrap:wrap; gap:10px; margin:26px 0 0}
+  .hero-photo{position:relative}
+  .hero-photo img{width:100%; height:auto; border-radius:12px; border:1px solid var(--line);
+    box-shadow:0 18px 40px -24px rgba(8,30,56,.5)}
+  .hero-photo figcaption{margin-top:10px; font-size:12.5px; color:var(--faint); font-style:italic}
+
+  /* ---------- signature strip: voice -> joints -> serial ---------- */
+  .translate{margin:40px 0 0; border:1px solid var(--line); border-radius:12px;
+    background:linear-gradient(180deg,#fff, #fafbfc); overflow:hidden}
+  .translate-head{display:flex; align-items:center; gap:10px; padding:11px 16px;
+    border-bottom:1px solid var(--line); font-size:12px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--muted); font-weight:700}
+  .translate-head .dot{width:8px; height:8px; border-radius:50%; background:var(--navy)}
+  .translate-head .ex{margin-left:auto; text-transform:none; letter-spacing:0; font-weight:500; color:var(--faint)}
+  .tl-body{padding:20px 16px; display:grid; grid-template-columns:auto 1fr auto 1fr;
+    gap:14px 16px; align-items:center; font-family:var(--mono); font-size:14px}
+  .tl-stage{display:flex; flex-direction:column; gap:4px; min-width:0}
+  .tl-label{font-family:var(--sans); font-size:10.5px; font-weight:700; letter-spacing:.09em;
+    text-transform:uppercase; color:var(--faint)}
+  .tl-utter{font-family:var(--serif); font-style:italic; font-size:20px; color:var(--ink)}
+  .tl-json{white-space:pre-wrap; word-break:break-word; color:var(--navy-deep)}
+  .tl-json .k{color:var(--ink)}
+  .tl-json .v{color:var(--amber); font-weight:600}
+  .tl-serial{color:var(--ink)}
+  .tl-serial .op{color:var(--navy); font-weight:700}
+  .tl-serial b{color:var(--amber); font-weight:700}
+  .tl-arrow{color:var(--line-strong); font-weight:700; font-family:var(--sans); font-size:20px; text-align:center}
+  .tl-cycle{transition:opacity .5s ease}
+  .tl-dots{display:flex; gap:6px; padding:0 16px 16px}
+  .tl-dots button{width:22px; height:5px; border-radius:3px; border:0; padding:0; cursor:pointer;
+    background:var(--line-strong)}
+  .tl-dots button[aria-current="true"]{background:var(--navy)}
+
+  /* ---------- sections ---------- */
+  .section{padding:60px 0; border-bottom:1px solid var(--line)}
+  .section.alt{background:var(--panel)}
+  .sec-head{display:flex; align-items:baseline; gap:14px; margin:0 0 8px}
+  .sec-num{font-family:var(--mono); font-size:13px; font-weight:600; color:var(--navy);
+    letter-spacing:.05em; padding-top:2px; flex:0 0 auto}
+  .section h2{font-size:clamp(23px,3vw,31px); margin:0}
+  .lead{color:var(--muted); font-size:18.5px; margin:14px 0 0; max-width:62ch}
+  .section p{margin:16px 0 0}
+  .section p.measure, .section .lead{max-width:62ch}
+
+  /* abstract */
+  .abstract{padding:52px 0}
+  .abstract .body{font-family:var(--serif); font-size:19px; line-height:1.66; margin-top:6px}
+  .abstract .kw{margin-top:22px; font-size:13.5px; color:var(--muted)}
+  .abstract .kw b{color:var(--ink); font-weight:600}
+
+  /* contributions */
+  .cards{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; margin-top:30px}
+  .card{border:1px solid var(--line); border-radius:12px; padding:22px; background:#fff}
+  .card .tag{font-family:var(--mono); font-size:12px; font-weight:700; color:#fff;
+    background:var(--navy); border-radius:5px; padding:2px 8px; letter-spacing:.03em}
+  .card h3{font-size:18px; margin:14px 0 0}
+  .card p{margin:9px 0 0; font-size:15px; color:var(--muted); line-height:1.55}
+
+  /* figures */
+  .figrow{display:grid; grid-template-columns:1fr 1fr; gap:26px; margin-top:30px; align-items:start}
+  figure{margin:0}
+  .fig{border:1px solid var(--line); border-radius:12px; background:#fff; padding:18px}
+  .fig img{display:block; width:100%; height:auto}
+  .fig.tight img{max-width:420px; margin:0 auto}
+  figcaption{margin-top:12px; font-size:13.5px; color:var(--muted); font-style:italic; line-height:1.5}
+  figcaption b{font-style:normal; color:var(--ink); font-weight:600}
+
+  /* code / pseudocode */
+  .code{margin-top:22px; border:1px solid var(--line-strong); border-radius:10px; overflow:hidden;
+    background:#0f1b28}
+  .code-bar{display:flex; align-items:center; gap:8px; padding:9px 14px; background:#0b141e;
+    border-bottom:1px solid #1d2c3b; font-family:var(--mono); font-size:12px; color:#8ea3b6}
+  .code-bar .fn{color:#e6edf3}
+  .code pre{margin:0; padding:16px 18px; overflow-x:auto; color:#d5e3ef;
+    font-family:var(--mono); font-size:13.5px; line-height:1.65}
+  .code .cm{color:#7d93a6}
+  .code .kw2{color:#7fb2ff}
+  .code .st{color:#e0a458}
+  .code .op2{color:#63c2a6}
+
+  /* tables */
+  .tablewrap{margin-top:26px; overflow-x:auto; border:1px solid var(--line); border-radius:10px}
+  table{border-collapse:collapse; width:100%; font-size:14.5px; min-width:460px}
+  caption{caption-side:top; text-align:left; font-size:13.5px; color:var(--muted);
+    font-style:italic; padding:12px 16px 0}
+  thead th{font-family:var(--sans); font-size:12.5px; letter-spacing:.03em; text-transform:uppercase;
+    color:var(--muted); font-weight:700; text-align:left; padding:12px 16px;
+    border-bottom:2px solid var(--line-strong)}
+  tbody td{padding:9px 16px; border-bottom:1px solid var(--line)}
+  tbody tr:last-child td{border-bottom:0}
+  td.num, th.num{text-align:right; font-variant-numeric:tabular-nums; font-family:var(--mono); font-size:13.5px}
+  td.key{font-family:var(--mono); font-size:13px; color:var(--navy-deep)}
+  tr.grp td{background:var(--panel-2); font-weight:700; font-size:12.5px; letter-spacing:.03em;
+    text-transform:uppercase; color:var(--muted)}
+  details{margin-top:18px; border:1px solid var(--line); border-radius:10px; background:#fff}
+  details>summary{cursor:pointer; padding:14px 18px; font-weight:600; list-style:none;
+    display:flex; align-items:center; gap:10px}
+  details>summary::-webkit-details-marker{display:none}
+  details>summary::before{content:"▸"; color:var(--navy); transition:transform .15s}
+  details[open]>summary::before{transform:rotate(90deg)}
+  details .tablewrap{margin:0 14px 16px}
+
+  /* note */
+  .note{margin-top:24px; border-left:3px solid var(--navy); background:var(--panel);
+    padding:14px 18px; font-size:15px; color:var(--muted); border-radius:0 8px 8px 0}
+  .note b{color:var(--ink)}
+
+  /* discussion list */
+  .points{list-style:none; padding:0; margin:26px 0 0; display:grid; gap:16px}
+  .points li{display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:start}
+  .points .m{font-family:var(--mono); font-size:12px; font-weight:700; color:var(--navy);
+    border:1px solid var(--line-strong); border-radius:6px; padding:3px 8px; white-space:nowrap; margin-top:3px}
+  .points p{margin:0; font-size:15.5px}
+  .points b{color:var(--ink)}
+
+  /* getting started */
+  .start-grid{display:grid; grid-template-columns:1.1fr .9fr; gap:26px; margin-top:26px; align-items:start}
+  .kbd{display:inline-block; font-family:var(--mono); font-size:12px; background:#fff;
+    border:1px solid var(--line-strong); border-bottom-width:2px; border-radius:6px; padding:2px 7px}
+
+  /* footer */
+  footer{padding:52px 0 60px; background:#0f1b28; color:#c6d3df}
+  footer h2{color:#fff}
+  footer a{color:#8fc0ef}
+  footer a:hover{color:#c8e2fb}
+  .cite{margin-top:18px; background:#0b141e; border:1px solid #1d2c3b; border-radius:10px;
+    padding:16px 18px; overflow-x:auto; font-family:var(--mono); font-size:12.5px; line-height:1.6; color:#aebfce}
+  .foot-links{display:flex; flex-wrap:wrap; gap:22px; margin-top:26px; font-size:14px}
+  .foot-meta{margin-top:26px; padding-top:20px; border-top:1px solid #1d2c3b; font-size:12.5px; color:#7d93a6}
+
+  /* responsive */
+  @media (max-width:860px){
+    .hero-grid{grid-template-columns:1fr; gap:32px}
+    .hero-photo{order:-1; max-width:360px}
+    .cards{grid-template-columns:1fr}
+    .figrow{grid-template-columns:1fr}
+    .start-grid{grid-template-columns:1fr}
+    .tl-body{grid-template-columns:1fr; gap:6px}
+    .tl-arrow{transform:rotate(90deg); margin:2px 0}
+    .nav-links .only-wide{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){
+    .tl-cycle{transition:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav class="nav">
+  <div class="nav-in">
+    <span class="brand">
+      <span class="glyph"><svg width="16" height="16" viewBox="0 0 32 32" aria-hidden="true"><g fill="#fff"><rect x="8" y="13" width="2.6" height="6" rx="1"/><rect x="12.5" y="9" width="2.6" height="14" rx="1"/><rect x="17" y="6" width="2.6" height="20" rx="1"/><rect x="21.5" y="11" width="2.6" height="10" rx="1"/></g></svg></span>
+      <span>InMoov Voice Assistant<small class="t" data-es="Voz a acción · UTEM" data-en="Voice to action · UTEM">Voz a acción · UTEM</small></span>
+    </span>
+    <span class="nav-links">
+      <a href="#architecture" class="only-wide t" data-es="Arquitectura" data-en="Architecture">Arquitectura</a>
+      <a href="#interface" class="only-wide t" data-es="Interfaz" data-en="Interface">Interfaz</a>
+      <a href="#hardware" class="only-wide t" data-es="Hardware" data-en="Hardware">Hardware</a>
+      <a href="#start" class="only-wide t" data-es="Empezar" data-en="Get started">Empezar</a>
+      <button id="lang" class="btn" type="button" aria-label="Switch language">EN</button>
+      <a class="btn btn-solid" href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant" target="_blank" rel="noopener">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+        GitHub
+      </a>
+    </span>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow t" data-es="Humanoide InMoov de bajo costo" data-en="Low-cost InMoov humanoid">Humanoide InMoov de bajo costo</div>
+      <h1>
+        <span class="lang-es">Selección de acciones por voz mediante llamadas a función en un humanoide InMoov de bajo costo</span>
+        <span class="lang-en">Voice-Driven Action Selection Through Function Calling in a Low-Cost InMoov Humanoid Robot</span>
+      </h1>
+      <p class="sub">
+        <span class="lang-es">Detección de voz local, ASR en la nube y un LLM con <em>function calling</em> que comanda 21 articulaciones sobre una Raspberry Pi 5 y un Arduino Mega.</span>
+        <span class="lang-en">Local voice activity detection, cloud ASR, and an LLM with function calling that drives 21 joints on a Raspberry Pi 5 and an Arduino Mega.</span>
+      </p>
+      <p class="byline">
+        <span class="authors">Felipe I. Ballesteros León · Patricio Galarce Acevedo · Macarena E. Monsalve Sepúlveda · Marcelo I. Cerda Muñoz · Lisbel Bárzaga Martell</span><br>
+        <span class="aff">Departamento de Electricidad, Universidad Tecnológica Metropolitana (UTEM), Santiago, Chile</span>
+        <span class="grant">ANID-FONDECYT 3240317</span>
+      </p>
+      <ul class="chips">
+        <li>Raspberry Pi 5</li><li>Arduino Mega</li>
+        <li><span class="t" data-es="21 articulaciones" data-en="21 joints">21 articulaciones</span></li>
+        <li>Silero VAD</li><li>Whisper ASR</li><li>LLM function calling</li>
+      </ul>
+      <div class="hero-cta">
+        <a class="btn btn-solid" href="#architecture"><span class="t" data-es="Ver la arquitectura" data-en="See the architecture">Ver la arquitectura</span></a>
+        <a class="btn" href="#start"><span class="t" data-es="Cómo ejecutarlo" data-en="How to run it">Cómo ejecutarlo</span></a>
+      </div>
+    </div>
+    <figure class="hero-photo">
+      <img src="assets/foto.png" alt="Recommissioned InMoov humanoid torso with 21 actuated joints" loading="eager">
+      <figcaption>
+        <span class="lang-es">Torso InMoov recomisionado, con 21 articulaciones activas, usado para validar la arquitectura.</span>
+        <span class="lang-en">Recommissioned InMoov torso, 21 actuated joints, used to validate the architecture.</span>
+      </figcaption>
+    </figure>
+  </div>
+
+  <!-- signature: voice -> joints -> serial -->
+  <div class="wrap">
+    <div class="translate" id="translate">
+      <div class="translate-head">
+        <span class="dot"></span>
+        <span class="t" data-es="Una orden hablada → pares articulación-ángulo → serial" data-en="One spoken command → joint-angle pairs → serial">Una orden hablada → pares articulación-ángulo → serial</span>
+        <span class="ex t" data-es="ejemplo ilustrativo" data-en="illustrative example">ejemplo ilustrativo</span>
+      </div>
+      <div class="tl-body tl-cycle" id="tlBody">
+        <div class="tl-stage">
+          <span class="tl-label t" data-es="orden" data-en="command">orden</span>
+          <span class="tl-utter" id="tlUtter">«saluda»</span>
+        </div>
+        <div class="tl-arrow">→</div>
+        <div class="tl-stage">
+          <span class="tl-label">set_robot_joints</span>
+          <span class="tl-json" id="tlJson"></span>
+        </div>
+        <div class="tl-arrow">→</div>
+        <div class="tl-stage" style="grid-column:1 / -1">
+          <span class="tl-label t" data-es="comando al Arduino Mega" data-en="command to Arduino Mega">comando al Arduino Mega</span>
+          <span class="tl-serial" id="tlSerial"></span>
+        </div>
+      </div>
+      <div class="tl-dots" id="tlDots" role="tablist" aria-label="examples"></div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ ABSTRACT ============ -->
+<section class="abstract wrap" aria-label="Abstract">
+  <div class="measure">
+    <div class="eyebrow t" data-es="Resumen" data-en="Abstract">Resumen</div>
+    <p class="body">
+      <span class="lang-es">La robótica humanoide open-source, como InMoov, ofrece una vía de bajo costo para investigación y docencia, pero estas plataformas quedan parcialmente inoperativas cuando sus componentes se descontinúan y rara vez exploran comportamientos generados en tiempo de ejecución. Este trabajo presenta el recomisionado del torso de un robot InMoov —reemplazando y validando actuadores descontinuados— y su integración con una arquitectura de voz a acción basada en modelos de lenguaje grandes (LLM). El sistema combina detección de actividad de voz local (Silero VAD), reconocimiento de habla en la nube (Whisper) y <em>function calling</em> guiado por el LLM sobre una Raspberry Pi 5 que comanda un Arduino Mega. En lugar de exponer funciones de movimiento específicas, una interfaz general de pares articulación-ángulo para 21 articulaciones permite al LLM componer acciones articuladas con validación de límites antes de cada comando.</span>
+      <span class="lang-en">Open-source humanoid robots such as InMoov provide a low-cost platform for research and engineering education, but they often become partially inoperable as original components are discontinued, and are typically limited to predefined motion sequences. This paper presents the recommissioning of an existing InMoov torso — replacing and validating discontinued actuators — and its integration with a voice-to-action architecture based on large language models (LLMs). The system combines local voice activity detection (Silero VAD), cloud speech recognition (Whisper), and LLM-driven function calling on a Raspberry Pi 5 that talks to an Arduino Mega. Instead of exposing motion-specific functions, a generalized joint-angle interface for 21 controlled joints lets the LLM compose articulated actions through a unified representation, with joint-limit validation before every command.</span>
+    </p>
+    <p class="kw">
+      <b class="t" data-es="Palabras clave:" data-en="Index terms:">Palabras clave:</b>
+      <span class="t" data-es="robots humanoides, InMoov, interacción por voz, LLM, function calling, selección de acciones, robótica de bajo costo, edge computing." data-en="Humanoid robots, InMoov, voice-based interaction, large language models, function calling, action selection, low-cost robotics, edge computing.">robots humanoides, InMoov, interacción por voz, LLM, function calling, selección de acciones, robótica de bajo costo, edge computing.</span>
+    </p>
+  </div>
+</section>
+
+<!-- ============ CONTRIBUTIONS ============ -->
+<section class="section" id="contributions">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">I</span>
+      <h2 class="t" data-es="Contribuciones" data-en="Contributions">Contribuciones</h2></div>
+    <p class="lead t" data-es="Qué aporta este trabajo, en tres puntos." data-en="What this work contributes, in three points.">Qué aporta este trabajo, en tres puntos.</p>
+    <div class="cards">
+      <div class="card">
+        <span class="tag">C1</span>
+        <h3 class="t" data-es="Arquitectura de voz a acción" data-en="Voice-to-action architecture">Arquitectura de voz a acción</h3>
+        <p><span class="lang-es">Diseño e implementación de una arquitectura de voz a acción para un humanoide de bajo costo, integrando VAD local, ASR en la nube y <em>function calling</em> guiado por LLM sobre Raspberry Pi 5 + Arduino Mega.</span><span class="lang-en">Design and implementation of a voice-to-action architecture for a low-cost humanoid, integrating local VAD, cloud ASR and LLM-driven function calling on a Raspberry Pi 5 + Arduino Mega.</span></p>
+      </div>
+      <div class="card">
+        <span class="tag">C2</span>
+        <h3 class="t" data-es="Interfaz articulación-ángulo" data-en="Joint-angle interface">Interfaz articulación-ángulo</h3>
+        <p><span class="lang-es">Una interfaz de acción general basada en pares articulación-ángulo para 21 articulaciones controladas, que genera acciones articuladas sin funciones específicas de movimiento.</span><span class="lang-en">A generalized action interface based on joint-angle pairs for 21 controlled joints, generating articulated actions without predefined motion-specific functions.</span></p>
+      </div>
+      <div class="card">
+        <span class="tag">C3</span>
+        <h3 class="t" data-es="Validación en hardware real" data-en="Validation on real hardware">Validación en hardware real</h3>
+        <p><span class="lang-es">Validación experimental sobre un torso InMoov recomisionado, con evidencia preliminar de generación de acciones no scripteadas a partir de comandos de voz semánticos.</span><span class="lang-en">Experimental validation on a recommissioned InMoov torso, with preliminary evidence of non-scripted action generation from semantic voice commands.</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ARCHITECTURE ============ -->
+<section class="section alt" id="architecture">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">II</span>
+      <h2 class="t" data-es="Arquitectura del sistema" data-en="System architecture">Arquitectura del sistema</h2></div>
+    <p class="lead">
+      <span class="lang-es">El pipeline de voz corre sobre la Raspberry Pi 5. Silero VAD segmenta localmente el turno del usuario; el audio se transcribe con un servicio basado en Whisper y se agrega al historial de diálogo. El LLM decide entonces si responde con texto o invoca una herramienta local mediante <em>function calling</em>.</span>
+      <span class="lang-en">The voice pipeline runs on the Raspberry Pi 5. Silero VAD segments the user's turn locally; the audio is transcribed by a Whisper-based service and appended to the dialog history. The LLM then decides whether to answer with text or invoke a local tool through function calling.</span>
+    </p>
+    <p class="measure">
+      <span class="lang-es">La Pi mantiene un bucle de solicitud/respuesta con el modelo: construye cada solicitud con el historial y los esquemas de herramientas, ejecuta localmente la herramienta solicitada y devuelve su salida —hasta 16 rondas— hasta producir una respuesta final que se envía a síntesis de voz.</span>
+      <span class="lang-en">The Pi keeps a request/response loop with the model: it builds each request from the dialog history and the tool schemas, runs any requested tool locally, and returns its output — up to 16 rounds — until a final reply is produced and sent to text-to-speech.</span>
+    </p>
+    <div class="figrow">
+      <figure class="fig">
+        <img src="assets/pipeline.png" alt="Voice-to-action pipeline: edge VAD, cloud ASR and LLM, local function execution">
+        <figcaption><b>Fig. 1.</b>
+          <span class="lang-es">Pipeline voz-a-acción: la Pi segmenta la voz en el borde, consulta ASR y LLM en la nube, ejecuta localmente las llamadas de función y retorna el resultado al modelo hasta la respuesta final.</span>
+          <span class="lang-en">Voice-to-action pipeline: the Pi segments speech at the edge, calls cloud ASR and LLM, runs function calls locally, and returns each result to the model until the final reply.</span>
+        </figcaption>
+      </figure>
+      <figure class="fig">
+        <img src="assets/llm_loop.png" alt="LLM request/response cycle with local tool (function) calling">
+        <figcaption><b>Fig. 2.</b>
+          <span class="lang-es">Ciclo de solicitud/respuesta del LLM con llamadas a herramientas locales. Ante un <code>function_call</code>, la Pi ejecuta la herramienta —incluida la actuación serial del InMoov vía Arduino—, agrega el <code>function_call_output</code> y vuelve a consultar al modelo (≤ 16 rondas).</span>
+          <span class="lang-en">LLM request/response cycle with local tool calling. On a <code>function_call</code>, the Pi runs the tool — including serial actuation of the InMoov via Arduino — appends the <code>function_call_output</code> and re-queries the model (≤ 16 rounds).</span>
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INTERFACE ============ -->
+<section class="section" id="interface">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">III</span>
+      <h2 class="t" data-es="Interfaz general articulación-ángulo" data-en="Generalized joint-angle interface">Interfaz general articulación-ángulo</h2></div>
+    <p class="lead">
+      <span class="lang-es">La acción física se comanda con una única interfaz general en lugar de funciones específicas de movimiento. El modelo ve dos herramientas: <code>get_robot_status</code> para consultar el robot y <code>set_robot_joints</code> para enviar consignas articulares parciales.</span>
+      <span class="lang-en">Physical action is driven through one general interface instead of movement-specific functions. The model sees two tools: <code>get_robot_status</code> to query the robot and <code>set_robot_joints</code> to send partial joint targets.</span>
+    </p>
+    <p class="measure">
+      <span class="lang-es">Cada llamada a <code>set_robot_joints</code> lleva una lista de pares articulación-ángulo; las articulaciones omitidas conservan su posición. Por eso un comando como «saluda» no está atado a una rutina fija: puede traducirse en distintas combinaciones de cabeza, mano y brazo. Antes de llegar al Arduino Mega, la Pi valida nombres, rechaza duplicados y verifica cada ángulo contra los límites de las 21 articulaciones; los pares válidos se serializan al comando compacto <code>ROBOT JOINTS i:ángulo …</code>.</span>
+      <span class="lang-en">Each <code>set_robot_joints</code> call carries a list of joint-angle pairs; omitted joints hold their position. That is why a command like "wave" is not tied to a fixed routine — it can map to different combinations of head, hand and arm. Before reaching the Arduino Mega, the Pi validates names, rejects duplicates and checks every angle against the limits of the 21 joints; valid pairs are serialized to the compact <code>ROBOT JOINTS i:angle …</code> command.</span>
+    </p>
+
+    <div class="code" aria-label="set_robot_joints example">
+      <div class="code-bar"><span class="fn">set_robot_joints</span><span>— <span class="t" data-es="argumentos de ejemplo" data-en="example arguments">argumentos de ejemplo</span></span></div>
+<pre>{
+  <span class="st">"joints"</span>: [
+    { <span class="st">"joint"</span>: <span class="st">"cabeza"</span>,     <span class="st">"angle_degrees"</span>: <span class="op2">90</span> },
+    { <span class="st">"joint"</span>: <span class="st">"indice_der"</span>, <span class="st">"angle_degrees"</span>: <span class="op2">40</span> }
+  ]
+}
+<span class="cm">// → serial: ROBOT JOINTS 6:90 17:40   →   OK JOINTS 2</span></pre>
+    </div>
+
+    <div class="code" aria-label="orchestration pseudocode">
+      <div class="code-bar"><span class="fn t" data-es="Orquestación por function calling" data-en="Function-calling orchestration">Orquestación por function calling</span></div>
+<pre class="lang-es"><span class="kw2">requiere</span> transcripción del usuario <span class="op2">u</span>, historial de diálogo <span class="op2">H</span>
+construir solicitud con H, u y esquemas de herramientas
+<span class="kw2">mientras</span> el LLM retorne una llamada de función:
+  <span class="kw2">si</span> la función es <span class="st">get_robot_status</span>:
+      consultar disponibilidad del robot
+  <span class="kw2">si no, si</span> la función es <span class="st">set_robot_joints</span>:
+      validar articulaciones, duplicados y límites
+      serializar consignas como <span class="st">ROBOT JOINTS</span>
+      enviar comando al Arduino Mega
+  retornar el resultado de la herramienta al LLM
+generar la respuesta final y reproducirla por síntesis de voz</pre>
+<pre class="lang-en"><span class="kw2">require</span> user transcript <span class="op2">u</span>, dialog history <span class="op2">H</span>
+build request with H, u and the tool schemas
+<span class="kw2">while</span> the LLM returns a function call:
+  <span class="kw2">if</span> the function is <span class="st">get_robot_status</span>:
+      query robot availability
+  <span class="kw2">else if</span> the function is <span class="st">set_robot_joints</span>:
+      validate joints, duplicates and limits
+      serialize targets as <span class="st">ROBOT JOINTS</span>
+      send command to the Arduino Mega
+  return the tool result to the LLM
+produce the final reply and play it via text-to-speech</pre>
+    </div>
+    <p class="note">
+      <span class="lang-es"><b>La seguridad vive en la validación.</b> Como el LLM puede pedir cualquier consigna, la variabilidad del comportamiento viene de <em>elegir</em> ángulos, no de eliminar restricciones mecánicas.</span>
+      <span class="lang-en"><b>Safety lives in validation.</b> Since the LLM can request any target, behavioral variety comes from <em>choosing</em> angles, not from removing mechanical limits.</span>
+    </p>
+  </div>
+</section>
+
+<!-- ============ HARDWARE ============ -->
+<section class="section alt" id="hardware">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">IV</span>
+      <h2 class="t" data-es="Recomisionado del hardware" data-en="Hardware recommissioning">Recomisionado del hardware</h2></div>
+    <p class="lead">
+      <span class="lang-es">El torso InMoov ya existía, pero varios actuadores y componentes originales quedaron descontinuados. Se reemplazaron por equivalentes actuales, verificando compatibilidad mecánica y eléctrica articulación por articulación.</span>
+      <span class="lang-en">The InMoov torso already existed, but several original actuators and parts were discontinued. They were replaced with current equivalents, verifying mechanical and electrical fit joint by joint.</span>
+    </p>
+
+    <div class="figrow">
+      <figure class="fig">
+        <img src="assets/modulos.png" alt="InMoov torso modules: head, jaw, neck, shoulders, biceps, forearms and wrists">
+        <figcaption><b>Fig. 3.</b>
+          <span class="lang-es">Módulos articulados del torso: cabeza, mandíbula, ojos, cuello (central y laterales), hombros, bíceps, antebrazos y muñecas.</span>
+          <span class="lang-en">Articulated torso modules: head, jaw, eyes, neck (central and lateral), shoulders, biceps, forearms and wrists.</span>
+        </figcaption>
+      </figure>
+      <figure class="fig">
+        <img src="assets/actuacion.png" alt="Actuation architecture: Raspberry Pi 5 to Arduino Mega to 21 joints">
+        <figcaption><b>Fig. 4.</b>
+          <span class="lang-es">Arquitectura de actuación: la Pi transforma la llamada de función en un comando serial compacto y el Arduino Mega valida límites y distribuye las consignas a las 21 articulaciones.</span>
+          <span class="lang-en">Actuation architecture: the Pi turns the function call into a compact serial command, and the Arduino Mega validates limits and distributes targets to the 21 joints.</span>
+        </figcaption>
+      </figure>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <caption><span class="t" data-es="Tabla I. Actuadores por grupo: servo original y equivalente actual instalado." data-en="Table I. Actuators by group: original servo and current installed equivalent.">Tabla I. Actuadores por grupo: servo original y equivalente actual instalado.</span></caption>
+        <thead>
+          <tr>
+            <th class="t" data-es="Grupo" data-en="Group">Grupo</th>
+            <th class="t" data-es="Servo original (kg·cm)" data-en="Original servo (kg·cm)">Servo original (kg·cm)</th>
+            <th class="t" data-es="Servo nuevo (kg·cm)" data-en="New servo (kg·cm)">Servo nuevo (kg·cm)</th>
+            <th class="num">N.º</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="t" data-es="Hombros" data-en="Shoulders">Hombros</td><td>Hitec HS-805BB (≈24)</td><td>DS5180 (80)</td><td class="num">6</td></tr>
+          <tr><td class="t" data-es="Bíceps" data-en="Biceps">Bíceps</td><td>Hitec HS-805BB (≈24)</td><td>DS5180 (80)</td><td class="num">2</td></tr>
+          <tr><td class="t" data-es="Cabeza (rotación)" data-en="Head (rotation)">Cabeza (rotación)</td><td>Hitec HS-805BB (≈24)</td><td>DS5180 (80)</td><td class="num">1</td></tr>
+          <tr><td class="t" data-es="Cuello (vertical)" data-en="Neck (vertical)">Cuello (vertical)</td><td>HK15298B (20)</td><td>DS5180 (80)</td><td class="num">1</td></tr>
+          <tr><td class="t" data-es="Cuello (laterales)" data-en="Neck (lateral)">Cuello (laterales)</td><td>HK15298B (20)</td><td class="t" data-es="Estándar (20)" data-en="Standard (20)">Estándar (20)</td><td class="num">2</td></tr>
+          <tr><td class="t" data-es="Mandíbula" data-en="Jaw">Mandíbula</td><td>HK15298B (20)</td><td class="t" data-es="Estándar (20)" data-en="Standard (20)">Estándar (20)</td><td class="num">1</td></tr>
+          <tr><td class="t" data-es="Dedos (manos)" data-en="Fingers (hands)">Dedos (manos)</td><td>HK15298B (20)</td><td>DS3225 (25)</td><td class="num">10</td></tr>
+          <tr><td class="t" data-es="Muñeca" data-en="Wrist">Muñeca</td><td>MG996R (10)</td><td>DS3225 (25)</td><td class="num">2</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">
+      <span class="lang-es"><b>Dimensionamiento.</b> En el peor caso —brazo extendido en horizontal— el antebrazo se modela como 1,5 kg a 30 cm, dando τ = 45 kg·cm; frente a los 80 kg·cm del DS5180, el margen supera el 75 %.</span>
+      <span class="lang-en"><b>Sizing.</b> Worst case — arm extended horizontally — the forearm is modeled as 1.5 kg at 30 cm, giving τ = 45 kg·cm; against the DS5180's 80 kg·cm rating, the margin exceeds 75 %.</span>
+    </p>
+
+    <details>
+      <summary class="t" data-es="Rangos de las 21 articulaciones (mín / máx / home, en grados)" data-en="Ranges of the 21 joints (min / max / home, degrees)">Rangos de las 21 articulaciones (mín / máx / home, en grados)</summary>
+      <div class="tablewrap">
+        <table>
+          <caption><span class="t" data-es="Tabla II. Límites articulares y posición home; verificados en el firmware antes de ejecutar." data-en="Table II. Joint limits and home position; checked in firmware before execution.">Tabla II. Límites articulares y posición home; verificados en el firmware antes de ejecutar.</span></caption>
+          <thead><tr>
+            <th class="t" data-es="Articulación (clave)" data-en="Joint (key)">Articulación (clave)</th>
+            <th class="num">Mín°</th><th class="num">Máx°</th><th class="num">Home°</th>
+          </tr></thead>
+          <tbody>
+            <tr class="grp"><td colspan="4" class="t" data-es="Hombros" data-en="Shoulders">Hombros</td></tr>
+            <tr><td class="key">lat_izq</td><td class="num">80</td><td class="num">135</td><td class="num">135</td></tr>
+            <tr><td class="key">lat_der</td><td class="num">70</td><td class="num">123</td><td class="num">123</td></tr>
+            <tr><td class="key">rotor_izq</td><td class="num">10</td><td class="num">80</td><td class="num">80</td></tr>
+            <tr><td class="key">rotor_der</td><td class="num">10</td><td class="num">90</td><td class="num">90</td></tr>
+            <tr class="grp"><td colspan="4" class="t" data-es="Bíceps" data-en="Biceps">Bíceps</td></tr>
+            <tr><td class="key">bicep_izq</td><td class="num">75</td><td class="num">140</td><td class="num">90</td></tr>
+            <tr><td class="key">bicep_der</td><td class="num">90</td><td class="num">140</td><td class="num">90</td></tr>
+            <tr class="grp"><td colspan="4" class="t" data-es="Cabeza y cuello" data-en="Head and neck">Cabeza y cuello</td></tr>
+            <tr><td class="key">cabeza</td><td class="num">10</td><td class="num">170</td><td class="num">90</td></tr>
+            <tr><td class="key">mandibula</td><td class="num">10</td><td class="num">70</td><td class="num">10</td></tr>
+            <tr><td class="key">cuello</td><td class="num">50</td><td class="num">180</td><td class="num">60</td></tr>
+            <tr><td class="key">cuello_izq</td><td class="num">70</td><td class="num">150</td><td class="num">110</td></tr>
+            <tr><td class="key">cuello_der</td><td class="num">50</td><td class="num">130</td><td class="num">90</td></tr>
+            <tr class="grp"><td colspan="4" class="t" data-es="Mano izquierda" data-en="Left hand">Mano izquierda</td></tr>
+            <tr><td class="key">pulgar_izq</td><td class="num">0</td><td class="num">140</td><td class="num">140</td></tr>
+            <tr><td class="key">indice_izq</td><td class="num">0</td><td class="num">140</td><td class="num">140</td></tr>
+            <tr><td class="key">medio_izq</td><td class="num">0</td><td class="num">160</td><td class="num">160</td></tr>
+            <tr><td class="key">anular_izq</td><td class="num">0</td><td class="num">130</td><td class="num">130</td></tr>
+            <tr><td class="key">meni_izq</td><td class="num">0</td><td class="num">130</td><td class="num">130</td></tr>
+            <tr class="grp"><td colspan="4" class="t" data-es="Mano derecha" data-en="Right hand">Mano derecha</td></tr>
+            <tr><td class="key">pulgar_der</td><td class="num">0</td><td class="num">120</td><td class="num">120</td></tr>
+            <tr><td class="key">indice_der</td><td class="num">0</td><td class="num">120</td><td class="num">120</td></tr>
+            <tr><td class="key">medio_der</td><td class="num">0</td><td class="num">130</td><td class="num">130</td></tr>
+            <tr><td class="key">anular_der</td><td class="num">0</td><td class="num">170</td><td class="num">170</td></tr>
+            <tr><td class="key">meni_der</td><td class="num">0</td><td class="num">120</td><td class="num">120</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ============ DISCUSSION ============ -->
+<section class="section" id="discussion">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">V</span>
+      <h2 class="t" data-es="Discusión y límites" data-en="Discussion and limits">Discusión y límites</h2></div>
+    <ul class="points">
+      <li>
+        <span class="m t" data-es="costo" data-en="cost">costo</span>
+        <p><span class="lang-es"><b>Camino de menor costo.</b> A bordo, solo una Raspberry Pi 5 + Arduino Mega y servos de uso común, sin GPU. El cómputo pesado (ASR y LLM) se delega a la nube: mantiene bajo el costo de materiales, pero agrega latencia de red, costo por uso y consideraciones de privacidad.</span><span class="lang-en"><b>Lowest-cost path.</b> On board, only a Raspberry Pi 5 + Arduino Mega and commodity servos — no GPU. The heavy compute (ASR and LLM) is delegated to the cloud: it keeps the bill of materials low, but adds network latency, per-use cost and privacy considerations.</span></p>
+      </li>
+      <li>
+        <span class="m t" data-es="offline" data-en="offline">offline</span>
+        <p><span class="lang-es"><b>Alternativa sin conexión.</b> Un LLM de pesos abiertos cuantizado en el borde, más un ASR local como Vosk, eliminaría la dependencia de internet y mejoraría la reproducibilidad, a costa de más cómputo a bordo y, típicamente, menor capacidad del modelo.</span><span class="lang-en"><b>Offline alternative.</b> A quantized open-weight LLM on the edge, plus a local ASR engine such as Vosk, would remove the internet dependency and improve reproducibility, at the cost of more onboard compute and typically lower model capability.</span></p>
+      </li>
+      <li>
+        <span class="m t" data-es="alcance" data-en="scope">alcance</span>
+        <p><span class="lang-es"><b>Resultados preliminares.</b> Se trata de una evaluación inicial, con pocas pruebas y dependiente de conectividad y de una API propietaria; la cuantificación de latencia y diversidad de acciones está en curso.</span><span class="lang-en"><b>Preliminary results.</b> This is an early evaluation, with few trials and dependent on connectivity and a proprietary API; quantifying latency and action diversity is in progress.</span></p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ GET STARTED ============ -->
+<section class="section alt" id="start">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">→</span>
+      <h2 class="t" data-es="Ejecutarlo" data-en="Run it">Ejecutarlo</h2></div>
+    <p class="lead">
+      <span class="lang-es">Se controla con un mando Xbox: la primera pulsación de <span class="kbd">A</span> entra en modo conversación, la segunda apaga el programa. Necesita Python 3.12+, acceso al gamepad y comandos externos de captura/reproducción de audio.</span>
+      <span class="lang-en">It is controlled with an Xbox gamepad: the first press of <span class="kbd">A</span> enters conversation mode, the second shuts it down. Needs Python 3.12+, gamepad access, and external audio record/play commands.</span>
+    </p>
+    <div class="start-grid">
+      <div class="code" aria-label="install and run">
+        <div class="code-bar"><span class="fn t" data-es="Instalar y ejecutar" data-en="Install and run">Instalar y ejecutar</span></div>
+<pre><span class="cm"># <span class="t" data-es="clonar el repositorio" data-en="clone the repository">clonar el repositorio</span></span>
+git clone https://github.com/FelipeBallesteros0/inmoov-voice-assistant
+cd inmoov-voice-assistant
+
+python3 -m pip install -r requirements.txt
+python3 main.py</pre>
+      </div>
+      <div class="code" aria-label="key environment variables">
+        <div class="code-bar"><span class="fn t" data-es="Variables clave" data-en="Key variables">Variables clave</span></div>
+<pre><span class="kw2">export</span> OPENAI_CHAT_MODEL=<span class="st">'gpt-5.5'</span>
+<span class="kw2">export</span> OPENAI_STT_MODEL=<span class="st">'gpt-4o-mini-transcribe'</span>
+<span class="kw2">export</span> OPENAI_TTS_MODEL=<span class="st">'gpt-4o-mini-tts'</span>
+<span class="kw2">export</span> ROBOT_SERIAL_PORT=<span class="st">'/dev/ttyUSB0'</span>
+<span class="kw2">export</span> GAMEPAD_DEVICE=<span class="st">'/dev/input/js0'</span></pre>
+      </div>
+    </div>
+    <p class="note">
+      <span class="lang-es">La API key se resuelve por <code>OPENAI_API_KEY</code>, un archivo local, o importación desde un USB con <code>api_key.txt</code>. Detalles completos en el <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant#readme">README</a>.</span>
+      <span class="lang-en">The API key is resolved from <code>OPENAI_API_KEY</code>, a local file, or import from a USB with <code>api_key.txt</code>. Full details in the <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant#readme">README</a>.</span>
+    </p>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap measure">
+    <h2 class="t" data-es="Cómo citar" data-en="How to cite">Cómo citar</h2>
+    <p style="color:#9db0c2; margin-top:10px">
+      <span class="lang-es">Trabajo del Departamento de Electricidad, UTEM. Si te resulta útil, cítalo así:</span>
+      <span class="lang-en">Work from the Department of Electrical Engineering, UTEM. If you find it useful, cite it as:</span>
+    </p>
+    <pre class="cite">@inproceedings{ballesteros_inmoov_voice,
+  title     = {Voice-Driven Action Selection Through Function Calling
+               in a Low-Cost InMoov Humanoid Robot},
+  author    = {Ballesteros Le\'on, Felipe I. and Galarce Acevedo, Patricio
+               and Monsalve Sep\'ulveda, Macarena E. and Cerda Mu\~noz, Marcelo I.
+               and B\'arzaga Martell, Lisbel},
+  note      = {Universidad Tecnol\'ogica Metropolitana (UTEM), Santiago, Chile},
+  year      = {2026}
+}</pre>
+    <div class="foot-links">
+      <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://www.utem.cl" target="_blank" rel="noopener">UTEM</a>
+      <a href="https://inmoov.fr" target="_blank" rel="noopener">InMoov project</a>
+    </div>
+    <p class="foot-meta">
+      <span class="t" data-es="Financiado en parte por ANID-FONDECYT 3240317." data-en="Partly supported by ANID-FONDECYT 3240317.">Financiado en parte por ANID-FONDECYT 3240317.</span>
+    </p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var root = document.documentElement;
+
+  /* ---- language ---- */
+  var STORE = 'ivass-lang';
+  var btn = document.getElementById('lang');
+  function shorts(lang){
+    var alt = (lang === 'es') ? 'en' : 'es';
+    document.querySelectorAll('.t').forEach(function(el){
+      var v = el.getAttribute('data-' + lang);
+      if (v !== null) el.textContent = v;
+    });
+    btn.textContent = alt.toUpperCase();
+    root.setAttribute('lang', lang);
+    root.setAttribute('data-lang', lang);
+  }
+  function setLang(lang){ try{ localStorage.setItem(STORE, lang); }catch(e){} shorts(lang); }
+  var saved;
+  try{ saved = localStorage.getItem(STORE); }catch(e){}
+  setLang(saved === 'en' ? 'en' : 'es');
+  btn.addEventListener('click', function(){
+    setLang(root.getAttribute('data-lang') === 'es' ? 'en' : 'es');
+  });
+
+  /* ---- signature strip: cycling examples ---- */
+  var examples = [
+    { utter:{es:'«saluda»', en:'"wave"'},
+      pairs:[['cabeza',90],['lat_der',110],['indice_der',40]],
+      serial:[['6',90],['1',110],['17',40]] },
+    { utter:{es:'«haz una pose»', en:'"strike a pose"'},
+      pairs:[['rotor_der',60],['bicep_der',120],['cabeza',120]],
+      serial:[['3',60],['5',120],['6',120]] },
+    { utter:{es:'«festeja»', en:'"celebrate"'},
+      pairs:[['lat_izq',100],['lat_der',100],['mandibula',60]],
+      serial:[['0',100],['1',100],['7',60]] }
+  ];
+  var jsonEl = document.getElementById('tlJson');
+  var serialEl = document.getElementById('tlSerial');
+  var utterEl = document.getElementById('tlUtter');
+  var bodyEl = document.getElementById('tlBody');
+  var dotsEl = document.getElementById('tlDots');
+  var idx = 0, timer = null;
+
+  function esc(s){ return String(s).replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  function render(i){
+    var ex = examples[i];
+    var lang = root.getAttribute('data-lang');
+    utterEl.textContent = ex.utter[lang] || ex.utter.es;
+    jsonEl.innerHTML = '{ ' + ex.pairs.map(function(p){
+      return '<span class="k">' + esc(p[0]) + '</span>:<span class="v">' + p[1] + '</span>';
+    }).join(', ') + ' }';
+    serialEl.innerHTML = '<span class="op">ROBOT JOINTS</span> ' + ex.serial.map(function(p){
+      return p[0] + ':<b>' + p[1] + '</b>';
+    }).join(' ');
+    Array.prototype.forEach.call(dotsEl.children, function(b, k){
+      b.setAttribute('aria-current', k === i ? 'true' : 'false');
+    });
+  }
+  examples.forEach(function(_, i){
+    var b = document.createElement('button');
+    b.type = 'button'; b.setAttribute('role','tab');
+    b.setAttribute('aria-label', 'example ' + (i+1));
+    b.addEventListener('click', function(){ go(i); restart(); });
+    dotsEl.appendChild(b);
+  });
+  function go(i){
+    idx = i;
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce){ render(idx); return; }
+    bodyEl.style.opacity = 0;
+    setTimeout(function(){ render(idx); bodyEl.style.opacity = 1; }, 260);
+  }
+  function next(){ go((idx + 1) % examples.length); }
+  function restart(){ if (timer) clearInterval(timer);
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) timer = setInterval(next, 3600); }
+  render(0); restart();
+  // re-render current example on language switch (utterance is localized)
+  btn.addEventListener('click', function(){ render(idx); });
+})();
+</script>
+</body>
+</html>
