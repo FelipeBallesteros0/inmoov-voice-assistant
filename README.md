@@ -1,5 +1,11 @@
 # Raspberry Voice Assistant
 
+**🌐 Sitio del proyecto / Project site:** https://felipeballesteros0.github.io/inmoov-voice-assistant/
+
+<p align="center">
+  <img src="docs/assets/foto.png" alt="Torso humanoide InMoov recomisionado" width="360">
+</p>
+
 Asistente de voz para Raspberry Pi 5 controlado con un mando Xbox 360.
 
 Flujo:
