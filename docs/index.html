@@ -313,12 +313,12 @@
   <div class="measure">
     <div class="eyebrow t" data-es="Resumen" data-en="Abstract">Resumen</div>
     <p class="body">
-      <span class="lang-es">La robótica humanoide open-source, como InMoov, ofrece una vía de bajo costo para investigación y docencia, pero estas plataformas quedan parcialmente inoperativas cuando sus componentes se descontinúan y rara vez exploran comportamientos generados en tiempo de ejecución. Este trabajo presenta el recomisionado del torso de un robot InMoov —reemplazando y validando actuadores descontinuados— y su integración con una arquitectura de voz a acción basada en modelos de lenguaje grandes (LLM). El sistema combina detección de actividad de voz local (Silero VAD), reconocimiento de habla en la nube (Whisper) y <em>function calling</em> guiado por el LLM sobre una Raspberry Pi 5 que comanda un Arduino Mega. En lugar de exponer funciones de movimiento específicas, una interfaz general de pares articulación-ángulo para 21 articulaciones permite al LLM componer acciones articuladas con validación de límites antes de cada comando.</span>
-      <span class="lang-en">Open-source humanoid robots such as InMoov provide a low-cost platform for research and engineering education, but they often become partially inoperable as original components are discontinued, and are typically limited to predefined motion sequences. This paper presents the recommissioning of an existing InMoov torso — replacing and validating discontinued actuators — and its integration with a voice-to-action architecture based on large language models (LLMs). The system combines local voice activity detection (Silero VAD), cloud speech recognition (Whisper), and LLM-driven function calling on a Raspberry Pi 5 that talks to an Arduino Mega. Instead of exposing motion-specific functions, a generalized joint-angle interface for 21 controlled joints lets the LLM compose articulated actions through a unified representation, with joint-limit validation before every command.</span>
+      <span class="lang-es">La robótica humanoide open-source, como InMoov, ofrece una vía de bajo costo para investigación y docencia, pero estas plataformas quedan parcialmente inoperativas cuando sus componentes se descontinúan y rara vez exploran comportamientos generados en tiempo de ejecución. Este trabajo presenta el recomisionado del torso de un robot InMoov —reemplazando y validando actuadores y componentes electrónicos descontinuados— y su integración con una arquitectura de voz a acción basada en modelos de lenguaje grandes (LLM). El sistema combina detección de actividad de voz local (Silero VAD), reconocimiento de habla en la nube (Whisper) y <em>function calling</em> guiado por el LLM sobre una Raspberry Pi 5 que se comunica con un microcontrolador. En lugar de exponer funciones de movimiento específicas, una interfaz general de pares articulación-ángulo para 21 articulaciones permite al LLM componer acciones articuladas con validación de límites antes de cada comando.</span>
+      <span class="lang-en">Open-source humanoid robots such as InMoov provide a low-cost platform for research and engineering education, but they often become partially inoperable as original components are discontinued, and are typically limited to predefined motion sequences. This paper presents the recommissioning of an existing InMoov torso — replacing and validating discontinued actuators and electronic components — and its integration with a voice-to-action architecture based on large language models (LLMs). The system combines local voice activity detection (Silero VAD), cloud speech recognition (Whisper), and LLM-driven function calling on a Raspberry Pi 5 that communicates with a microcontroller. Instead of exposing motion-specific functions, a generalized joint-angle interface for 21 controlled joints lets the LLM compose articulated actions through a unified representation, with joint-limit validation before every command.</span>
     </p>
     <p class="kw">
       <b class="t" data-es="Palabras clave:" data-en="Index terms:">Palabras clave:</b>
-      <span class="t" data-es="robots humanoides, InMoov, interacción por voz, LLM, function calling, selección de acciones, robótica de bajo costo, edge computing." data-en="Humanoid robots, InMoov, voice-based interaction, large language models, function calling, action selection, low-cost robotics, edge computing.">robots humanoides, InMoov, interacción por voz, LLM, function calling, selección de acciones, robótica de bajo costo, edge computing.</span>
+      <span class="t" data-es="robots humanoides, InMoov, interacción humano-robot por voz, modelos de lenguaje grandes, function calling, robótica de bajo costo, edge computing." data-en="Humanoid robots, InMoov, voice-based human–robot interaction, large language models, function calling, low-cost robotics, edge computing.">robots humanoides, InMoov, interacción humano-robot por voz, modelos de lenguaje grandes, function calling, robótica de bajo costo, edge computing.</span>
     </p>
   </div>
 </section>
@@ -359,15 +359,15 @@
       <span class="lang-en">The voice pipeline runs on the Raspberry Pi 5. Silero VAD segments the user's turn locally; the audio is transcribed by a Whisper-based service and appended to the dialog history. The LLM then decides whether to answer with text or invoke a local tool through function calling.</span>
     </p>
     <p class="measure">
-      <span class="lang-es">La Pi mantiene un bucle de solicitud/respuesta con el modelo: construye cada solicitud con el historial y los esquemas de herramientas, ejecuta localmente la herramienta solicitada y devuelve su salida —hasta 16 rondas— hasta producir una respuesta final que se envía a síntesis de voz.</span>
-      <span class="lang-en">The Pi keeps a request/response loop with the model: it builds each request from the dialog history and the tool schemas, runs any requested tool locally, and returns its output — up to 16 rounds — until a final reply is produced and sent to text-to-speech.</span>
+      <span class="lang-es">La Pi actúa como capa de orquestación: mantiene el bucle de solicitud/respuesta con el modelo, construye cada solicitud con el historial y los esquemas de herramientas, ejecuta localmente la herramienta solicitada y devuelve su salida —hasta 16 rondas— hasta producir una respuesta final que se envía a síntesis de voz. La evaluación se realiza con comandos hablados en español, el idioma nativo de los usuarios objetivo.</span>
+      <span class="lang-en">The Pi acts as the orchestration layer: it keeps the request/response loop with the model, builds each request from the dialog history and the tool schemas, runs any requested tool locally, and returns its output — up to 16 rounds — until a final reply is produced and sent to text-to-speech. The evaluation is conducted with spoken commands in Spanish, the native language of the target users.</span>
     </p>
     <div class="figrow">
       <figure class="fig">
         <img src="assets/pipeline.png" alt="Voice-to-action pipeline: edge VAD, cloud ASR and LLM, local function execution">
         <figcaption><b>Fig. 1.</b>
-          <span class="lang-es">Pipeline voz-a-acción: la Pi segmenta la voz en el borde, consulta ASR y LLM en la nube, ejecuta localmente las llamadas de función y retorna el resultado al modelo hasta la respuesta final.</span>
-          <span class="lang-en">Voice-to-action pipeline: the Pi segments speech at the edge, calls cloud ASR and LLM, runs function calls locally, and returns each result to the model until the final reply.</span>
+          <span class="lang-es">Arquitectura voz-a-acción. Los comandos hablados pasan por detección de actividad de voz local, reconocimiento de habla en la nube y <em>function calling</em> del LLM; las consignas articulación-ángulo se validan localmente antes de ejecutarse en la plataforma InMoov.</span>
+          <span class="lang-en">Voice-to-action architecture. Spoken commands are processed through local voice activity detection, cloud-based speech recognition, and LLM-driven function calling; the resulting joint-angle commands are validated locally before being executed by the InMoov platform.</span>
         </figcaption>
       </figure>
       <figure class="fig">
@@ -391,8 +391,12 @@
       <span class="lang-en">Physical action is driven through one general interface instead of movement-specific functions. The model sees two tools: <code>get_robot_status</code> to query the robot and <code>set_robot_joints</code> to send partial joint targets.</span>
     </p>
     <p class="measure">
-      <span class="lang-es">Cada llamada a <code>set_robot_joints</code> lleva una lista de pares articulación-ángulo; las articulaciones omitidas conservan su posición. Por eso un comando como «saluda» no está atado a una rutina fija: puede traducirse en distintas combinaciones de cabeza, mano y brazo. Antes de llegar al Arduino Mega, la Pi valida nombres, rechaza duplicados y verifica cada ángulo contra los límites de las 21 articulaciones; los pares válidos se serializan al comando compacto <code>ROBOT JOINTS i:ángulo …</code>.</span>
-      <span class="lang-en">Each <code>set_robot_joints</code> call carries a list of joint-angle pairs; omitted joints hold their position. That is why a command like "wave" is not tied to a fixed routine — it can map to different combinations of head, hand and arm. Before reaching the Arduino Mega, the Pi validates names, rejects duplicates and checks every angle against the limits of the 21 joints; valid pairs are serialized to the compact <code>ROBOT JOINTS i:angle …</code> command.</span>
+      <span class="lang-es">Este diseño desacopla el comando semántico de alto nivel del movimiento de bajo nivel. Cada llamada a <code>set_robot_joints</code> lleva una lista de pares articulación-ángulo; las articulaciones omitidas conservan su posición. Por eso un comando como «saluda» no está atado a una rutina fija: puede traducirse en distintas combinaciones de cabeza, mano y brazo. Antes de llegar al Arduino Mega, la Pi valida nombres, rechaza duplicados y verifica cada ángulo contra los límites de las 21 articulaciones; los pares válidos se serializan al comando compacto <code>ROBOT JOINTS i:ángulo …</code>.</span>
+      <span class="lang-en">This design decouples the high-level semantic command from the low-level motion. Each <code>set_robot_joints</code> call carries a list of joint-angle pairs; omitted joints hold their position. That is why a command like "greet" is not tied to a fixed routine — it can map to different combinations of head, hand and arm. Before reaching the Arduino Mega, the Pi validates names, rejects duplicates and checks every angle against the limits of the 21 joints; valid pairs are serialized to the compact <code>ROBOT JOINTS i:angle …</code> command.</span>
+    </p>
+    <p class="measure">
+      <span class="lang-es">Además del control de movimiento, el asistente expone herramientas para tareas cotidianas —alarmas y notas—, de modo que «pon una alarma en diez minutos» o «anota que …» disparan la herramienta correspondiente en lugar de un movimiento: la misma interfaz de <em>function calling</em> unifica acciones físicas del robot y capacidades de asistente digital. La implementación completa es <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant">pública</a>.</span>
+      <span class="lang-en">Beyond motion control, the assistant exposes tools for everyday tasks — alarms and notes — so that "set an alarm in ten minutes" or "take a note that …" triggers the corresponding tool instead of a robot motion: the same function-calling interface unifies physical robot actions and digital-assistant capabilities. The complete implementation is <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant">publicly available</a>.</span>
     </p>
 
     <div class="code" aria-label="set_robot_joints example">
@@ -459,8 +463,8 @@ produce the final reply and play it via text-to-speech</pre>
       <figure class="fig">
         <img src="assets/actuacion.png" alt="Actuation architecture: Raspberry Pi 5 to Arduino Mega to 21 joints">
         <figcaption><b>Fig. 4.</b>
-          <span class="lang-es">Arquitectura de actuación: la Pi transforma la llamada de función en un comando serial compacto y el Arduino Mega valida límites y distribuye las consignas a las 21 articulaciones.</span>
-          <span class="lang-en">Actuation architecture: the Pi turns the function call into a compact serial command, and the Arduino Mega validates limits and distributes targets to the 21 joints.</span>
+          <span class="lang-es">Arquitectura de actuación de bajo nivel: la Pi convierte las llamadas de función en comandos seriales compactos y el microcontrolador valida los límites articulares y distribuye las referencias a las 21 articulaciones controladas.</span>
+          <span class="lang-en">Low-level actuation architecture: the Pi converts function calls into compact serial commands, while the microcontroller validates joint limits and distributes references to the 21 controlled joints.</span>
         </figcaption>
       </figure>
     </div>
@@ -479,19 +483,19 @@ produce the final reply and play it via text-to-speech</pre>
         <tbody>
           <tr><td class="t" data-es="Hombros" data-en="Shoulders">Hombros</td><td>Hitec HS-805BB (≈24)</td><td>DS5180 (80)</td><td class="num">6</td></tr>
           <tr><td class="t" data-es="Bíceps" data-en="Biceps">Bíceps</td><td>Hitec HS-805BB (≈24)</td><td>DS5180 (80)</td><td class="num">2</td></tr>
-          <tr><td class="t" data-es="Cabeza (rotación)" data-en="Head (rotation)">Cabeza (rotación)</td><td>Hitec HS-805BB (≈24)</td><td>DS5180 (80)</td><td class="num">1</td></tr>
-          <tr><td class="t" data-es="Cuello (vertical)" data-en="Neck (vertical)">Cuello (vertical)</td><td>HK15298B (20)</td><td>DS5180 (80)</td><td class="num">1</td></tr>
-          <tr><td class="t" data-es="Cuello (laterales)" data-en="Neck (lateral)">Cuello (laterales)</td><td>HK15298B (20)</td><td class="t" data-es="Estándar (20)" data-en="Standard (20)">Estándar (20)</td><td class="num">2</td></tr>
+          <tr><td class="t" data-es="Rotación de cabeza" data-en="Head rotation">Rotación de cabeza</td><td>Hitec HS-805BB (≈24)</td><td>DS5180 (80)</td><td class="num">1</td></tr>
+          <tr><td class="t" data-es="Flexión de cuello" data-en="Neck flexion">Flexión de cuello</td><td>HK15298B (20)</td><td>DS5180 (80)</td><td class="num">1</td></tr>
+          <tr><td class="t" data-es="Inclinación lateral de cuello" data-en="Neck lateral tilt">Inclinación lateral de cuello</td><td>HK15298B (20)</td><td class="t" data-es="Estándar (20)" data-en="Standard (20)">Estándar (20)</td><td class="num">2</td></tr>
           <tr><td class="t" data-es="Mandíbula" data-en="Jaw">Mandíbula</td><td>HK15298B (20)</td><td class="t" data-es="Estándar (20)" data-en="Standard (20)">Estándar (20)</td><td class="num">1</td></tr>
-          <tr><td class="t" data-es="Dedos (manos)" data-en="Fingers (hands)">Dedos (manos)</td><td>HK15298B (20)</td><td>DS3225 (25)</td><td class="num">10</td></tr>
-          <tr><td class="t" data-es="Muñeca" data-en="Wrist">Muñeca</td><td>MG996R (10)</td><td>DS3225 (25)</td><td class="num">2</td></tr>
+          <tr><td class="t" data-es="Dedos (manos)" data-en="Fingers">Dedos (manos)</td><td>HK15298B (20)</td><td>DS3225 (25)</td><td class="num">10</td></tr>
+          <tr><td class="t" data-es="Rotación de muñeca" data-en="Wrist rotation">Rotación de muñeca</td><td>MG996R (10)</td><td>DS3225 (25)</td><td class="num">2</td></tr>
         </tbody>
       </table>
     </div>
 
     <p class="note">
-      <span class="lang-es"><b>Dimensionamiento.</b> En el peor caso —brazo extendido en horizontal— el antebrazo se modela como 1,5 kg a 30 cm, dando τ = 45 kg·cm; frente a los 80 kg·cm del DS5180, el margen supera el 75 %.</span>
-      <span class="lang-en"><b>Sizing.</b> Worst case — arm extended horizontally — the forearm is modeled as 1.5 kg at 30 cm, giving τ = 45 kg·cm; against the DS5180's 80 kg·cm rating, the margin exceeds 75 %.</span>
+      <span class="lang-es"><b>Dimensionamiento.</b> En el peor caso —brazo extendido en horizontal— el conjunto antebrazo-mano se modela como una carga de 1,5 kg a 30 cm del eje del hombro, dando τ = 45 kg·cm; frente a los 80 kg·cm nominales del DS5180, el margen es de ≈ 78 %.</span>
+      <span class="lang-en"><b>Sizing.</b> Worst case — arm fully extended horizontally — the forearm-hand assembly is modeled as a 1.5 kg load at 30 cm from the shoulder axis, giving τ = 45 kg·cm; against the DS5180's 80 kg·cm rating, the margin is ≈ 78 %.</span>
     </p>
 
     <details>
@@ -553,7 +557,11 @@ produce the final reply and play it via text-to-speech</pre>
       </li>
       <li>
         <span class="m t" data-es="alcance" data-en="scope">alcance</span>
-        <p><span class="lang-es"><b>Resultados preliminares.</b> Se trata de una evaluación inicial, con pocas pruebas y dependiente de conectividad y de una API propietaria; la cuantificación de latencia y diversidad de acciones está en curso.</span><span class="lang-en"><b>Preliminary results.</b> This is an early evaluation, with few trials and dependent on connectivity and a proprietary API; quantifying latency and action diversity is in progress.</span></p>
+        <p><span class="lang-es"><b>Resultados preliminares.</b> Se trata de una prueba de concepto inicial, con pocas pruebas y dependiente de conectividad y de una API propietaria; la cuantificación de latencia y diversidad de acciones está en curso.</span><span class="lang-en"><b>Preliminary results.</b> This is an early proof of concept, with few trials and dependent on connectivity and a proprietary API; quantifying latency and action diversity is in progress.</span></p>
+      </li>
+      <li>
+        <span class="m t" data-es="futuro" data-en="future">futuro</span>
+        <p><span class="lang-es"><b>Trabajo futuro.</b> Dos líneas: (i) una capa de seguridad dedicada que imponga límites de velocidad y aceleración e incorpore anticolisión básica para evitar movimientos bruscos o autocolisiones durante la actuación guiada por el LLM; y (ii) migrar el ASR y el LLM a modelos de pesos abiertos ejecutados en el borde, para una operación completamente offline.</span><span class="lang-en"><b>Future work.</b> Two directions: (i) a dedicated safety layer enforcing velocity and acceleration limits with basic collision avoidance, preventing abrupt movements or self-collisions during LLM-driven actuation; and (ii) migrating the ASR and LLM to open-weight models running on the edge, for fully offline operation.</span></p>
       </li>
     </ul>
   </div>
@@ -649,10 +657,10 @@ python3 main.py</pre>
 
   /* ---- signature strip: cycling examples ---- */
   var examples = [
-    { utter:{es:'«saluda»', en:'"wave"'},
+    { utter:{es:'«saluda»', en:'"greet"'},
       pairs:[['cabeza',90],['lat_der',110],['indice_der',40]],
       serial:[['6',90],['1',110],['17',40]] },
-    { utter:{es:'«haz una pose»', en:'"strike a pose"'},
+    { utter:{es:'«haz una pose de robot»', en:'"strike a robot pose"'},
       pairs:[['rotor_der',60],['bicep_der',120],['cabeza',120]],
       serial:[['3',60],['5',120],['6',120]] },
     { utter:{es:'«festeja»', en:'"celebrate"'},
