@@ -9,12 +9,46 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .alarms import cancel_alarm, list_alarms, schedule_alarm
-from .robot import ROBOT_JOINT_NAMES, get_robot_status, set_robot_joints
+from .robot import (
+    ROBOT_FINGER_POSITIONS,
+    ROBOT_FINGERS,
+    ROBOT_HANDS,
+    ROBOT_JOINT_NAMES,
+    ROBOT_ROUTINES,
+    ROBOT_SEQUENCE_ACTION_TYPES,
+    get_robot_status,
+    move_robot_finger,
+    run_robot_routine,
+    run_robot_sequence,
+    set_robot_joints,
+)
 from .servo import move_servo, run_servo_sequence
+
+# Herramientas de movimiento predefinido del InMoov. Se publican al modelo en el modo
+# por defecto (full), pero se ocultan en joints_only, donde el robot se comanda unicamente
+# a traves de la interfaz generalizada de pares articulacion-angulo.
+ROBOT_MOTION_TOOL_NAMES = ("run_robot_routine", "move_robot_finger", "run_robot_sequence")
+
+_JOINT_CONVENTIONS = (
+    "Angulo absoluto en grados; se valida contra el rango seguro de cada "
+    "articulacion. Convencion del InMoov: en los dedos 0 grados = flexionado "
+    "(mano cerrada) y el angulo de reposo del dedo = estirado (mano abierta); "
+    "mandibula 10 cerrada / 70 abierta; cabeza 90 al frente, 10 izquierda, "
+    "170 derecha."
+)
+_ROUTINE_PREFERENCE = " Para abrir/cerrar manos o mover brazos/cabeza prefiere run_robot_routine."
+
+
+def robot_tools_mode() -> str:
+    """`joints_only` expone solo la interfaz articular generalizada; `full` (defecto) todo."""
+    mode = os.getenv("ROBOT_TOOLS_MODE", "full").strip().lower()
+    return "joints_only" if mode == "joints_only" else "full"
 
 
 def tool_schemas() -> list[dict]:
-    return [
+    joints_only = robot_tools_mode() == "joints_only"
+    angle_description = _JOINT_CONVENTIONS if joints_only else _JOINT_CONVENTIONS + _ROUTINE_PREFERENCE
+    schemas = [
         {
             "type": "function",
             "name": "get_current_datetime",
@@ -236,7 +270,7 @@ def tool_schemas() -> list[dict]:
                                     "type": "integer",
                                     "minimum": 0,
                                     "maximum": 180,
-                                    "description": "Angulo absoluto en grados; se valida contra el rango seguro de cada articulacion.",
+                                    "description": angle_description,
                                 },
                             },
                             "required": ["joint", "angle_degrees"],
@@ -249,7 +283,109 @@ def tool_schemas() -> list[dict]:
             },
             "strict": True,
         },
+        {
+            "type": "function",
+            "name": "run_robot_routine",
+            "description": (
+                "Ejecuta una rutina segura predefinida del robot InMoov. Es la via preferida para "
+                "abrir o cerrar manos y para mover los brazos o la cabeza."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "routine_name": {
+                        "type": "string",
+                        "enum": list(ROBOT_ROUTINES),
+                        "description": (
+                            "Rutina: open_hands/close_hands, open_left_hand/close_left_hand, "
+                            "open_right_hand/close_right_hand, arms_open/arms_rest, head_center/"
+                            "head_left/head_right/head_nod, rest, demo."
+                        ),
+                    }
+                },
+                "required": ["routine_name"],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
+        {
+            "type": "function",
+            "name": "move_robot_finger",
+            "description": "Abre o cierra un dedo individual de una mano del robot InMoov.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "hand": {
+                        "type": "string",
+                        "enum": list(ROBOT_HANDS),
+                        "description": "Mano: left o right.",
+                    },
+                    "finger": {
+                        "type": "string",
+                        "enum": list(ROBOT_FINGERS),
+                        "description": "Dedo: thumb, index, middle, ring o pinky.",
+                    },
+                    "position": {
+                        "type": "string",
+                        "enum": list(ROBOT_FINGER_POSITIONS),
+                        "description": "open = dedo estirado (abierto); closed = dedo flexionado (cerrado).",
+                    },
+                },
+                "required": ["hand", "finger", "position"],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
+        {
+            "type": "function",
+            "name": "run_robot_sequence",
+            "description": (
+                "Ejecuta varias acciones del robot InMoov (dedos y/o rutinas) en una sola llamada. "
+                "En cada accion, deja en 'none' los campos que no apliquen a su action_type."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "actions": {
+                        "type": "array",
+                        "minItems": 1,
+                        "maxItems": 20,
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "action_type": {
+                                    "type": "string",
+                                    "enum": list(ROBOT_SEQUENCE_ACTION_TYPES),
+                                    "description": "finger para un dedo, routine para una rutina.",
+                                },
+                                "hand": {"type": "string", "description": "left/right si action_type=finger; 'none' si no."},
+                                "finger": {"type": "string", "description": "thumb/index/middle/ring/pinky si finger; 'none' si no."},
+                                "position": {"type": "string", "description": "open/closed si action_type=finger; 'none' si no."},
+                                "routine_name": {"type": "string", "description": "Nombre de rutina si action_type=routine; 'none' si no."},
+                                "delay_after_seconds": {"type": "number", "minimum": 0, "maximum": 10},
+                            },
+                            "required": [
+                                "action_type",
+                                "hand",
+                                "finger",
+                                "position",
+                                "routine_name",
+                                "delay_after_seconds",
+                            ],
+                            "additionalProperties": False,
+                        },
+                    }
+                },
+                "required": ["actions"],
+                "additionalProperties": False,
+            },
+            "strict": True,
+        },
     ]
+
+    if joints_only:
+        schemas = [tool for tool in schemas if tool["name"] not in ROBOT_MOTION_TOOL_NAMES]
+    return schemas
 
 
 def call_tool(name: str, arguments: str | dict) -> str:
@@ -291,6 +427,26 @@ def call_tool(name: str, arguments: str | dict) -> str:
             }
         elif name == "set_robot_joints":
             result = set_robot_joints(args["joints"])
+        elif name == "run_robot_routine":
+            routine_result = run_robot_routine(str(args["routine_name"]))
+            result = {
+                "ok": routine_result.ok,
+                "command": routine_result.command,
+                "port": routine_result.port,
+                "response": routine_result.response,
+            }
+        elif name == "move_robot_finger":
+            finger_result = move_robot_finger(
+                str(args["hand"]), str(args["finger"]), str(args["position"])
+            )
+            result = {
+                "ok": finger_result.ok,
+                "command": finger_result.command,
+                "port": finger_result.port,
+                "response": finger_result.response,
+            }
+        elif name == "run_robot_sequence":
+            result = run_robot_sequence(args["actions"])
         else:
             result = {"error": f"Herramienta desconocida: {name}"}
     except Exception as exc:

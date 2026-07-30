@@ -55,7 +55,12 @@ La API key se resuelve en este orden:
 
 ## Function calling local
 
-El asistente expone herramientas locales para hora/fecha, calculadora simple, notas, alarmas, servo de prueba e InMoov. Para el robot InMoov, el modelo solo ve `get_robot_status` y `set_robot_joints`: una funcion general que recibe pares `joint` + `angle_degrees` y mueve solo las articulaciones listadas. Las rutinas de dedos/manos quedan como comandos legacy del firmware, pero no se publican al LLM.
+El asistente expone herramientas locales para hora/fecha, calculadora simple, notas, alarmas, servo de prueba e InMoov. La funcion general del robot es `set_robot_joints`: recibe pares `joint` + `angle_degrees` y mueve solo las articulaciones listadas.
+
+Que herramientas del robot ve el modelo depende de `ROBOT_TOOLS_MODE`:
+
+- `full` (por defecto): ademas de `get_robot_status` y `set_robot_joints`, el modelo ve las rutinas predefinidas `run_robot_routine`, `move_robot_finger` y `run_robot_sequence`, y la descripcion de `set_robot_joints` lo orienta a preferir las rutinas para manos, brazos y cabeza.
+- `joints_only`: el modelo solo ve `get_robot_status` y `set_robot_joints`, sin rutinas predefinidas. Es la configuracion usada en los experimentos de generacion de acciones, donde toda accion articulada se compone desde pares articulacion-angulo.
 
 Ejemplo de argumentos para `set_robot_joints`:
 
@@ -130,6 +135,27 @@ ROBOT JOINTS 6:90 17:40
 cd /home/felipe/rpi_voice_assistant
 python3 -m pip install -r requirements.txt
 python3 main.py
+```
+
+## Experimentos de generacion de acciones
+
+`experiments/action_generation_trial.py` registra que configuracion articular genera el LLM ante comandos hablados repetidos. Cada turno espera Enter, graba hasta detectar silencio y parte con el historial de dialogo vacio, de modo que las repeticiones son independientes.
+
+```bash
+ROBOT_DRY_RUN=1 ROBOT_TOOLS_MODE=joints_only GAMEPAD_DEVICE=keyboard \
+python3 experiments/action_generation_trial.py --reps 3
+```
+
+- `ROBOT_DRY_RUN=1` desacopla la capa de actuacion: la consigna se genera, se valida contra los limites de las 21 articulaciones y se arma el comando serial, pero no se abre el puerto del Arduino Mega. Sirve para medir sin el torso conectado.
+- `ROBOT_TOOLS_MODE=joints_only` deja al modelo solo con la interfaz articular generalizada.
+- `GAMEPAD_DEVICE=keyboard` reemplaza el boton `A` del mando por Enter, util por SSH.
+
+El harness fija su propio system prompt (describe la interfaz articular y las convenciones del InMoov, sin decir que articulaciones usar para cada comando) salvo que definas `OPENAI_SYSTEM_PROMPT`.
+
+La salida es un JSONL por turno con transcripcion, llamadas a herramienta, pares articulacion-angulo, comando serial, resultado de la validacion y tiempos (`T_ASR`, `T_LLM`, `T_total`). Para reducirlo a tablas:
+
+```bash
+python3 experiments/make_paper_tables.py experiments/data/trial-*.jsonl --outdir experiments/tables
 ```
 
 ## Pruebas

@@ -269,5 +269,90 @@ class RobotTest(unittest.TestCase):
         )
 
 
+class RobotDryRunTest(unittest.TestCase):
+    """Modo experimento: se genera y valida la consigna, pero no se abre el serial.
+
+    Permite registrar las configuraciones articulares que produce el LLM sin el
+    Arduino Mega conectado, manteniendo intacta la validacion de limites.
+    """
+
+    def setUp(self) -> None:
+        robot.reset_robot_connection()
+
+    def tearDown(self) -> None:
+        robot.reset_robot_connection()
+
+    def test_set_robot_joints_dry_run_never_opens_serial(self) -> None:
+        serial_module = mock.Mock()
+
+        with mock.patch.object(robot, "serial", serial_module):
+            with mock.patch.dict(os.environ, {"ROBOT_DRY_RUN": "1"}, clear=False):
+                result = set_robot_joints(
+                    [
+                        {"joint": "cabeza", "angle_degrees": 90},
+                        {"joint": "indice_der", "angle_degrees": 40},
+                    ]
+                )
+
+        serial_module.Serial.assert_not_called()
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["command"], "ROBOT JOINTS 6:90 17:40")
+        self.assertEqual(result["response"], "OK JOINTS 2")
+        self.assertEqual(
+            result["joints_moved"],
+            [
+                {"joint": "cabeza", "index": 6, "angle_degrees": 90},
+                {"joint": "indice_der", "index": 17, "angle_degrees": 40},
+            ],
+        )
+
+    def test_dry_run_works_without_pyserial_installed(self) -> None:
+        with mock.patch.object(robot, "serial", None):
+            with mock.patch.dict(os.environ, {"ROBOT_DRY_RUN": "1"}, clear=False):
+                result = set_robot_joints([{"joint": "mandibula", "angle_degrees": 40}])
+
+        self.assertEqual(result["command"], "ROBOT JOINTS 7:40")
+
+    def test_dry_run_still_rejects_out_of_range_angle(self) -> None:
+        with mock.patch.dict(os.environ, {"ROBOT_DRY_RUN": "1"}, clear=False):
+            with self.assertRaises(RobotError):
+                set_robot_joints([{"joint": "cabeza", "angle_degrees": 200}])
+
+    def test_dry_run_still_rejects_duplicate_and_unknown_joints(self) -> None:
+        with mock.patch.dict(os.environ, {"ROBOT_DRY_RUN": "1"}, clear=False):
+            with self.assertRaises(RobotError):
+                set_robot_joints(
+                    [
+                        {"joint": "cabeza", "angle_degrees": 90},
+                        {"joint": "cabeza", "angle_degrees": 100},
+                    ]
+                )
+            with self.assertRaises(RobotError):
+                set_robot_joints([{"joint": "rodilla", "angle_degrees": 90}])
+
+    def test_get_robot_status_dry_run_reports_idle(self) -> None:
+        with mock.patch.object(robot, "serial", None):
+            with mock.patch.dict(os.environ, {"ROBOT_DRY_RUN": "1"}, clear=False):
+                result = get_robot_status()
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.command, "ROBOT STATUS")
+        self.assertEqual(result.response, "OK STATUS idle")
+
+    def test_dry_run_disabled_by_default(self) -> None:
+        env = {name: value for name, value in os.environ.items() if name != "ROBOT_DRY_RUN"}
+        serial_module = mock.Mock()
+        serial_module.Serial.return_value = _FakeSerial(responses=[b"OK JOINTS 1\n"])
+
+        with mock.patch.object(robot, "serial", serial_module):
+            with mock.patch.object(robot.Path, "exists", return_value=True):
+                with mock.patch.object(robot.time, "sleep"):
+                    with mock.patch.dict(os.environ, env, clear=True):
+                        os.environ["ROBOT_SERIAL_PORT"] = "/dev/test-robot"
+                        set_robot_joints([{"joint": "mandibula", "angle_degrees": 40}])
+
+        serial_module.Serial.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()

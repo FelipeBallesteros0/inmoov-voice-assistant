@@ -70,7 +70,7 @@ class ToolsTest(unittest.TestCase):
             },
         )
 
-    def test_tool_schemas_include_servo_and_general_robot_tools(self) -> None:
+    def test_tool_schemas_include_servo_and_robot_tools(self) -> None:
         from voice_assistant.tools import tool_schemas
 
         schemas = tool_schemas()
@@ -79,9 +79,9 @@ class ToolsTest(unittest.TestCase):
         self.assertIn("run_servo_sequence", names)
         self.assertIn("get_robot_status", names)
         self.assertIn("set_robot_joints", names)
-        self.assertNotIn("run_robot_routine", names)
-        self.assertNotIn("move_robot_finger", names)
-        self.assertNotIn("run_robot_sequence", names)
+        self.assertIn("run_robot_routine", names)
+        self.assertIn("move_robot_finger", names)
+        self.assertIn("run_robot_sequence", names)
 
         set_joints_schema = next(tool for tool in schemas if tool["name"] == "set_robot_joints")
         joints_schema = set_joints_schema["parameters"]["properties"]["joints"]
@@ -152,15 +152,127 @@ class ToolsTest(unittest.TestCase):
 
         self.assertEqual(result, fake_result)
 
-    def test_old_robot_action_tools_are_not_dispatchable(self) -> None:
-        result = json.loads(
-            call_tool(
-                "move_robot_finger",
-                {"hand": "right", "finger": "index", "position": "open"},
+    def test_move_robot_finger_tool_dispatches(self) -> None:
+        fake_result = RobotCommandResult(
+            ok=True,
+            command="ROBOT FINGER right index closed",
+            port="/dev/test-robot",
+            response="OK FINGER right index closed",
+        )
+        with mock.patch("voice_assistant.tools.move_robot_finger", return_value=fake_result):
+            result = json.loads(
+                call_tool(
+                    "move_robot_finger",
+                    {"hand": "right", "finger": "index", "position": "closed"},
+                )
             )
+
+        self.assertEqual(
+            result,
+            {
+                "ok": True,
+                "command": "ROBOT FINGER right index closed",
+                "port": "/dev/test-robot",
+                "response": "OK FINGER right index closed",
+            },
         )
 
-        self.assertEqual(result, {"error": "Herramienta desconocida: move_robot_finger"})
+    def test_run_robot_routine_tool_dispatches(self) -> None:
+        fake_result = RobotCommandResult(
+            ok=True,
+            command="ROBOT ROUTINE close_right_hand",
+            port="/dev/test-robot",
+            response="OK ROUTINE close_right_hand",
+        )
+        with mock.patch("voice_assistant.tools.run_robot_routine", return_value=fake_result):
+            result = json.loads(
+                call_tool("run_robot_routine", {"routine_name": "close_right_hand"})
+            )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["response"], "OK ROUTINE close_right_hand")
+
+    def test_run_robot_sequence_tool_dispatches(self) -> None:
+        fake_result = {"ok": True, "port": "/dev/test-robot", "actions_executed": 1, "results": []}
+        with mock.patch("voice_assistant.tools.run_robot_sequence", return_value=fake_result):
+            result = json.loads(
+                call_tool(
+                    "run_robot_sequence",
+                    {
+                        "actions": [
+                            {
+                                "action_type": "routine",
+                                "routine_name": "close_right_hand",
+                                "hand": "none",
+                                "finger": "none",
+                                "position": "none",
+                                "delay_after_seconds": 0,
+                            }
+                        ]
+                    },
+                )
+            )
+
+        self.assertEqual(result, fake_result)
+
+
+class RobotToolsModeTest(unittest.TestCase):
+    """Configuracion joints_only: el LLM solo ve la interfaz articular generalizada.
+
+    Es la configuracion que describe el paper (get_robot_status + set_robot_joints);
+    el asistente de uso diario conserva las rutinas legacy en el modo full.
+    """
+
+    def _schema_names(self) -> set[str]:
+        from voice_assistant.tools import tool_schemas
+
+        return {tool["name"] for tool in tool_schemas()}
+
+    def _angle_description(self) -> str:
+        from voice_assistant.tools import tool_schemas
+
+        schema = next(tool for tool in tool_schemas() if tool["name"] == "set_robot_joints")
+        properties = schema["parameters"]["properties"]["joints"]["items"]["properties"]
+        return properties["angle_degrees"]["description"]
+
+    def test_joints_only_hides_motion_specific_robot_tools(self) -> None:
+        with mock.patch.dict(os.environ, {"ROBOT_TOOLS_MODE": "joints_only"}):
+            names = self._schema_names()
+
+        self.assertIn("get_robot_status", names)
+        self.assertIn("set_robot_joints", names)
+        self.assertNotIn("run_robot_routine", names)
+        self.assertNotIn("move_robot_finger", names)
+        self.assertNotIn("run_robot_sequence", names)
+
+    def test_joints_only_keeps_non_robot_tools(self) -> None:
+        with mock.patch.dict(os.environ, {"ROBOT_TOOLS_MODE": "joints_only"}):
+            names = self._schema_names()
+
+        for expected in ("get_current_datetime", "calculate_expression", "save_note", "schedule_alarm"):
+            self.assertIn(expected, names)
+
+    def test_joints_only_drops_routine_preference_from_description(self) -> None:
+        with mock.patch.dict(os.environ, {"ROBOT_TOOLS_MODE": "joints_only"}):
+            description = self._angle_description()
+
+        self.assertNotIn("run_robot_routine", description)
+        self.assertIn("cabeza 90", description)
+
+    def test_full_mode_keeps_routines_and_is_the_default(self) -> None:
+        env = {name: value for name, value in os.environ.items() if name != "ROBOT_TOOLS_MODE"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            names = self._schema_names()
+            description = self._angle_description()
+
+        self.assertIn("run_robot_routine", names)
+        self.assertIn("run_robot_routine", description)
+
+    def test_unknown_mode_falls_back_to_full(self) -> None:
+        with mock.patch.dict(os.environ, {"ROBOT_TOOLS_MODE": "cualquier_cosa"}):
+            names = self._schema_names()
+
+        self.assertIn("run_robot_routine", names)
 
 
 if __name__ == "__main__":

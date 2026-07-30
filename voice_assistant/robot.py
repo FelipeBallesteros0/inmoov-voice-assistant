@@ -380,7 +380,39 @@ def _get_robot_connection(port: str, baudrate: int, timeout: float, ready_delay:
     return handle
 
 
+def dry_run_enabled() -> bool:
+    return os.getenv("ROBOT_DRY_RUN", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _simulated_response(expected_prefix: str) -> str:
+    """Respuesta que habria devuelto el firmware para un comando aceptado."""
+    return "OK STATUS idle" if expected_prefix == "OK STATUS" else expected_prefix
+
+
+def _simulate_command_sequence(commands: list[tuple[str, str, float]]) -> dict:
+    """Modo experimento: valida y arma los comandos, pero no abre el puerto serial.
+
+    Se usa para registrar las configuraciones articulares generadas por el LLM sin
+    el Arduino Mega conectado. La validacion de nombres, duplicados y limites ya
+    ocurrio en el llamador, de modo que solo se omite la capa de transporte.
+    """
+    port = os.getenv("ROBOT_SERIAL_PORT", "dry-run")
+    results = [
+        {"command": command, "response": _simulated_response(expected_prefix)}
+        for command, expected_prefix, _ in commands
+    ]
+    return {
+        "ok": True,
+        "port": port,
+        "actions_executed": len(results),
+        "results": results,
+    }
+
+
 def _send_robot_command_sequence(commands: list[tuple[str, str, float]]) -> dict:
+    if dry_run_enabled():
+        return _simulate_command_sequence(commands)
+
     if serial is None:
         raise RobotError("Falta instalar pyserial para controlar el robot.")
 
