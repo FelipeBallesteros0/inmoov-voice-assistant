@@ -153,10 +153,13 @@ def run_turn(context, recorder: TurnRecorder, turn_id: int, command: str, rep: i
     stop_event = threading.Event()
 
     recording_path = config.temp_audio_dir / f"trial-{turn_id:02d}-{int(time.time() * 1000)}.wav"
+    print(f'      >>> GRABANDO. Di ahora: "{command}"   (corta solo tras ~1 s de silencio)', flush=True)
     spoken_audio = context.audio.record_until_silence(recording_path, stop_event=stop_event)
     capture_end = time.monotonic()
     if spoken_audio is None:
+        print("      <<< no se detecto voz", flush=True)
         return {"turn_id": turn_id, "command_label": command, "repetition": rep, "error": "sin voz detectada"}
+    print("      <<< listo, procesando (transcripcion y generacion)...", flush=True)
 
     asr_start = time.monotonic()
     transcript = context.openai.transcribe(spoken_audio)
@@ -231,8 +234,8 @@ def main(argv: list[str] | None = None) -> int:
     completed = 0
     with output_path.open("a", encoding="utf-8") as sink:
         for turn_id, command, rep in plan:
-            print(f"[{turn_id}/{len(plan)}] Di: \"{command}\" (repeticion {rep})")
-            print("      Enter para empezar a grabar, Ctrl-C para abortar.")
+            print(f"[{turn_id}/{len(plan)}] Comando a decir: \"{command}\"  (repeticion {rep})")
+            print("      Presiona Enter y RECIEN AHI habla. Ctrl-C para abortar.")
             if not context.gamepad.wait_for_press(stop_event):
                 print("      Sin pulsacion; se aborta el trial.")
                 break
