@@ -111,11 +111,14 @@ class TurnRecorder:
         return [call for call in self.calls if call.name == "set_robot_joints"]
 
     @property
+    def accepted_calls(self) -> list[ToolCallRecord]:
+        """Un turno puede producir varias consignas sucesivas (un movimiento, no una pose)."""
+        return [call for call in self.joint_calls if call.accepted_at is not None]
+
+    @property
     def first_accepted(self) -> ToolCallRecord | None:
-        for call in self.joint_calls:
-            if call.accepted_at is not None:
-                return call
-        return None
+        accepted = self.accepted_calls
+        return accepted[0] if accepted else None
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -164,7 +167,10 @@ def run_turn(context, recorder: TurnRecorder, turn_id: int, command: str, rep: i
     reply_text = context.openai.reply(transcript, [])
     llm_seconds = time.monotonic() - llm_start
 
-    accepted = recorder.first_accepted
+    accepted_calls = recorder.accepted_calls
+    accepted = accepted_calls[0] if accepted_calls else None
+    # T_total se mide hasta la PRIMERA consigna aceptada: es el instante en que la
+    # capa de control acepta una accion ejecutable, como define el paper.
     total_seconds = (accepted.accepted_at - capture_end) if accepted else None
 
     if use_tts:
@@ -186,8 +192,12 @@ def run_turn(context, recorder: TurnRecorder, turn_id: int, command: str, rep: i
         ],
         "joints_generated": (accepted.result.get("joints_moved") if accepted else None),
         "serial_command": (accepted.result.get("command") if accepted else None),
+        # Secuencia completa: el modelo puede componer varias consignas en un turno.
+        "configuration_steps": [call.result.get("joints_moved") for call in accepted_calls],
+        "serial_commands": [call.result.get("command") for call in accepted_calls],
         "limit_validation_passed": accepted is not None,
         "joint_call_count": len(recorder.joint_calls),
+        "accepted_call_count": len(accepted_calls),
         "latency_seconds": {
             "asr": round(asr_seconds, 3),
             "llm": round(llm_seconds, 3),
@@ -252,8 +262,9 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"      ERROR: {turn['error']}\n")
                 continue
             print(f"      transcripcion: {turn['transcript']}")
-            print(f"      consigna: {summarize_joints(recorder.first_accepted)}")
-            print(f"      serial: {turn['serial_command']}")
+            print(f"      consignas aceptadas: {turn['accepted_call_count']}")
+            for step, call in enumerate(recorder.accepted_calls, start=1):
+                print(f"        {step}. {summarize_joints(call)}")
             latency = turn["latency_seconds"]
             print(f"      T_ASR={latency['asr']}s  T_LLM={latency['llm']}s  T_total={latency['total']}s\n")
 

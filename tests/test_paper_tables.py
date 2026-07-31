@@ -9,17 +9,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "experiments"))
 import make_paper_tables as tables  # noqa: E402
 
 
-def _turn(turn_id, command, rep, joints, asr=1.0, llm=2.0, total=4.0, accepted=True):
+def _steps(joints):
+    return [{"joint": name, "index": index, "angle_degrees": angle} for name, index, angle in joints]
+
+
+def _turn(turn_id, command, rep, joints, asr=1.0, llm=2.0, total=4.0, accepted=True, extra_steps=()):
+    first = _steps(joints)
     return {
         "turn_id": turn_id,
         "command_label": command,
         "repetition": rep,
         "transcript": command,
-        "joints_generated": [
-            {"joint": name, "index": index, "angle_degrees": angle} for name, index, angle in joints
-        ]
-        if accepted
-        else None,
+        "joints_generated": first if accepted else None,
+        "configuration_steps": ([first] + [_steps(s) for s in extra_steps]) if accepted else [],
         "serial_command": "ROBOT JOINTS 6:95" if accepted else None,
         "limit_validation_passed": accepted,
         "joint_call_count": 1 if accepted else 0,
@@ -52,6 +54,40 @@ class PaperTablesTest(unittest.TestCase):
 
         self.assertEqual(latex.count(r"\\"), len(self.turns) + 1)  # filas + encabezado
         self.assertIn(r"\label{tab:software_generation}", latex)
+
+    def test_multi_step_realization_reports_steps_and_union_of_joints(self) -> None:
+        turn = _turn(
+            9,
+            "saluda",
+            1,
+            [("cabeza", 6, 90), ("lat_der", 1, 110)],
+            extra_steps=[[("bicep_der", 5, 120)], [("cabeza", 6, 95), ("lat_der", 1, 100)]],
+        )
+
+        self.assertEqual(len(tables.configuration_steps(turn)), 3)
+        self.assertEqual(tables.activated_joints(turn), ["cabeza", "lat_der", "bicep_der"])
+
+        latex = tables.build_generation_table(tables.group_by_command([turn]))
+        # S=3 consignas, 3 articulaciones distintas, y se muestra la primera configuracion.
+        self.assertIn("& R1 & 3 & 3 &", latex)
+        self.assertIn(r"cabeza:90, lat\_der:110", latex)
+
+    def test_signature_covers_the_whole_sequence_not_only_the_first_step(self) -> None:
+        base = [("cabeza", 6, 90)]
+        a = _turn(1, "saluda", 1, base, extra_steps=[[("lat_der", 1, 110)]])
+        b = _turn(2, "saluda", 2, base, extra_steps=[[("lat_izq", 0, 110)]])
+
+        # Misma primera consigna, secuencias distintas -> deben contarse como distintas.
+        self.assertNotEqual(tables.configuration_signature(a), tables.configuration_signature(b))
+        summary = tables.build_summary([a, b], tables.valid_turns([a, b]))
+        self.assertEqual(summary["commands"]["saluda"]["distinct_configurations"], 2)
+
+    def test_reads_legacy_records_without_configuration_steps(self) -> None:
+        legacy = _turn(1, "saluda", 1, [("cabeza", 6, 90)])
+        legacy.pop("configuration_steps")
+
+        self.assertEqual(len(tables.configuration_steps(legacy)), 1)
+        self.assertEqual(tables.activated_joints(legacy), ["cabeza"])
 
     def test_counts_distinct_configurations_per_command(self) -> None:
         summary = tables.build_summary(self.turns, tables.valid_turns(self.turns))

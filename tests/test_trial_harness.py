@@ -79,6 +79,17 @@ class TurnRecorderTest(unittest.TestCase):
         self.assertIsNone(recorder.first_accepted)
         self.assertEqual(trial.summarize_joints(recorder.first_accepted), "(sin consigna articular)")
 
+    def test_keeps_every_accepted_configuration_of_the_turn(self) -> None:
+        recorder = trial.TurnRecorder()
+        with mock.patch.dict(os.environ, {"ROBOT_DRY_RUN": "1"}):
+            recorder("set_robot_joints", json.dumps({"joints": [{"joint": "cabeza", "angle_degrees": 90}]}))
+            recorder("set_robot_joints", json.dumps({"joints": [{"joint": "lat_der", "angle_degrees": 110}]}))
+            recorder("set_robot_joints", json.dumps({"joints": [{"joint": "cabeza", "angle_degrees": 200}]}))
+
+        self.assertEqual(len(recorder.joint_calls), 3)
+        self.assertEqual(len(recorder.accepted_calls), 2)  # la tercera viola el limite
+        self.assertIs(recorder.first_accepted, recorder.accepted_calls[0])
+
     def test_non_robot_tool_calls_are_kept_in_order(self) -> None:
         recorder = trial.TurnRecorder()
 
@@ -106,6 +117,10 @@ class RunTurnTest(unittest.TestCase):
                 "set_robot_joints",
                 json.dumps({"joints": [{"joint": "cabeza", "angle_degrees": 95}]}),
             )
+            recorder(
+                "set_robot_joints",
+                json.dumps({"joints": [{"joint": "lat_der", "angle_degrees": 110}]}),
+            )
             return "Listo, te saludo."
 
         openai = mock.Mock()
@@ -131,7 +146,11 @@ class RunTurnTest(unittest.TestCase):
         for key in ("asr", "llm", "total"):
             self.assertIsNotNone(turn["latency_seconds"][key])
             self.assertGreaterEqual(turn["latency_seconds"][key], 0.0)
-        self.assertEqual(len(turn["tool_calls"]), 1)
+        self.assertEqual(len(turn["tool_calls"]), 2)
+        # La secuencia completa queda registrada, no solo la primera consigna.
+        self.assertEqual(turn["accepted_call_count"], 2)
+        self.assertEqual(len(turn["configuration_steps"]), 2)
+        self.assertEqual(turn["serial_commands"], ["ROBOT JOINTS 6:95", "ROBOT JOINTS 1:110"])
 
     def test_turn_without_speech_is_reported_as_error(self) -> None:
         recorder = trial.TurnRecorder()
