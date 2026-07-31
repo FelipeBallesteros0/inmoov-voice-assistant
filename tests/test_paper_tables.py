@@ -25,6 +25,12 @@ def _turn(turn_id, command, rep, joints, asr=1.0, llm=2.0, total=4.0, accepted=T
         "serial_command": "ROBOT JOINTS 6:95" if accepted else None,
         "limit_validation_passed": accepted,
         "joint_call_count": 1 if accepted else 0,
+        "tool_calls": (
+            [{"name": "set_robot_joints", "arguments": {}, "result": {"ok": True}}] * (1 + len(extra_steps))
+            + [{"name": "set_robot_joints", "arguments": {}, "result": {"error": "Angulo fuera de rango"}}]
+            if accepted
+            else [{"name": "set_robot_joints", "arguments": {}, "result": {"error": "Angulo fuera de rango"}}]
+        ),
         "latency_seconds": {"asr": asr, "llm": llm, "total": total if accepted else None},
         "models": {"stt": "whisper-1", "chat": "gpt-5.5"},
         "dry_run": True,
@@ -97,8 +103,41 @@ class PaperTablesTest(unittest.TestCase):
         self.assertEqual(summary["commands"]["saluda"]["distinct_configurations"], 2)
         self.assertEqual(summary["commands"]["festeja"]["distinct_configurations"], 1)
 
-    def test_eta_remote_is_ratio_of_remote_services_to_total(self) -> None:
-        self.assertAlmostEqual(tables.eta_remote(self.turns[0]), 3.0 / 4.0)
+    def test_turn_duration_spans_asr_plus_llm(self) -> None:
+        self.assertAlmostEqual(tables.turn_seconds(self.turns[0]), 3.0)
+
+    def test_eta_remote_discounts_local_control_time(self) -> None:
+        # Un turno de 1 consigna: (3.0 - 1.0) / 3.0
+        self.assertAlmostEqual(tables.eta_remote(self.turns[0], local_exec=1.0), 2.0 / 3.0)
+
+    def test_eta_remote_never_exceeds_one(self) -> None:
+        # Regresion: comparar T_LLM completo contra el instante de la primera consigna
+        # daba cocientes mayores que 1, que son imposibles por definicion.
+        for turn in self.turns:
+            eta = tables.eta_remote(turn)
+            self.assertIsNotNone(eta)
+            self.assertLessEqual(eta, 1.0)
+            self.assertGreater(eta, 0.0)
+
+    def test_eta_remote_drops_when_the_turn_has_more_steps(self) -> None:
+        one = _turn(1, "saluda", 1, [("cabeza", 6, 90)])
+        three = _turn(2, "saluda", 2, [("cabeza", 6, 90)], extra_steps=[[("lat_der", 1, 110)], [("cabeza", 6, 95)]])
+
+        self.assertGreater(tables.eta_remote(one, 0.5), tables.eta_remote(three, 0.5))
+
+    def test_counts_proposed_accepted_and_rejected_calls(self) -> None:
+        turn = _turn(1, "saluda", 1, [("cabeza", 6, 90)], extra_steps=[[("lat_der", 1, 110)]])
+
+        proposed, accepted, rejected = tables.joint_call_stats(turn)
+
+        self.assertEqual((proposed, accepted, rejected), (3, 2, 1))
+
+    def test_validation_table_reports_rejections(self) -> None:
+        latex = tables.build_validation_table(tables.group_by_command(self.turns))
+
+        self.assertIn(r"\label{tab:validation}", latex)
+        self.assertIn("Rejected", latex)
+        self.assertIn("3/3", latex)  # las 3 realizaciones de saluda completaron
 
     def test_latency_table_reports_per_command_and_overall(self) -> None:
         grouped = tables.group_by_command(self.turns)
@@ -116,7 +155,15 @@ class PaperTablesTest(unittest.TestCase):
         summary = tables.build_summary(turns, accepted)
         self.assertEqual(summary["turns_recorded"], 5)
         self.assertEqual(summary["turns_with_accepted_configuration"], 4)
-        self.assertAlmostEqual(summary["function_call_rate"], 0.8)
+        # 4 de 5 turnos convergieron a una configuracion ejecutable...
+        self.assertAlmostEqual(summary["turn_convergence_rate"], 0.8)
+        # ...pero eso no es lo mismo que la validez de cada consigna propuesta:
+        # 4 turnos aceptados aportan 2 consignas cada uno (1 aceptada, 1 rechazada)
+        # y el turno fallido aporta 1 rechazada.
+        self.assertEqual(summary["joint_calls_proposed"], 9)
+        self.assertEqual(summary["joint_calls_accepted"], 4)
+        self.assertEqual(summary["joint_calls_rejected"], 5)
+        self.assertAlmostEqual(summary["call_validity_rate"], 4 / 9)
 
     def test_main_writes_fragments_and_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -1,0 +1,93 @@
+{
+  "turns_recorded": 12,
+  "turns_with_accepted_configuration": 12,
+  "turn_convergence_rate": 1.0,
+  "call_validity_rate": 0.3617021276595745,
+  "joint_calls_proposed": 47,
+  "joint_calls_accepted": 17,
+  "joint_calls_rejected": 30,
+  "commands": {
+    "saluda": {
+      "turns": 3,
+      "distinct_configurations": 3,
+      "steps_per_realization": [
+        4,
+        3,
+        1
+      ],
+      "joints_activated": [
+        10,
+        10,
+        10
+      ],
+      "proposed": 14,
+      "accepted": 8,
+      "rejected": 6
+    },
+    "festeja": {
+      "turns": 3,
+      "distinct_configurations": 3,
+      "steps_per_realization": [
+        1,
+        1,
+        1
+      ],
+      "joints_activated": [
+        18,
+        16,
+        16
+      ],
+      "proposed": 13,
+      "accepted": 3,
+      "rejected": 10
+    },
+    "haz una pose de robot": {
+      "turns": 3,
+      "distinct_configurations": 3,
+      "steps_per_realization": [
+        1,
+        1,
+        1
+      ],
+      "joints_activated": [
+        18,
+        18,
+        19
+      ],
+      "proposed": 8,
+      "accepted": 3,
+      "rejected": 5
+    },
+    "haz un gesto de bienvenida": {
+      "turns": 3,
+      "distinct_configurations": 3,
+      "steps_per_realization": [
+        1,
+        1,
+        1
+      ],
+      "joints_activated": [
+        18,
+        18,
+        18
+      ],
+      "proposed": 12,
+      "accepted": 3,
+      "rejected": 9
+    }
+  },
+  "mean_latency_seconds": {
+    "asr": 1.9061666666666666,
+    "llm": 24.666083333333333,
+    "first_command": 23.25775,
+    "turn": 26.572249999999997
+  },
+  "local_execution_seconds_per_command": 1.149,
+  "mean_eta_remote": 0.9366085477543536,
+  "models": {
+    "stt": "whisper-1",
+    "chat": "gpt-5.5"
+  },
+  "dry_run": false,
+  "robot_tools_mode": "joints_only"
+}

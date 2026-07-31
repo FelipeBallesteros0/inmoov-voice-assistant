@@ -1,0 +1,19 @@
+\begin{table}[!t]
+  \centering
+  \caption{Latency breakdown of the voice-to-action pipeline. $T_{\mathrm{turn}}$ spans from the end of speech capture to the final model response; $T_{\mathrm{first}}$ is the time until the control layer accepts the first executable configuration. $T_{\mathrm{LLM}}$ includes the local execution of the generated commands, which is discounted in $\eta_{\mathrm{remote}}$. Mechanical settling is excluded: the servomotors were unpowered.}
+  \label{tab:latency}
+  \resizebox{\columnwidth}{!}{%
+  \begin{tabular}{lcccccc}
+    \hline
+    Command & $N$ & $T_{\mathrm{ASR}}$ (s) & $T_{\mathrm{LLM}}$ (s) & $T_{\mathrm{first}}$ (s) & $T_{\mathrm{turn}}$ (s) & $\eta_{\mathrm{remote}}$ \\
+    \hline
+    \texttt{saluda} & 3 & 2.08 & 24.51 & 18.83 & 26.59 & 0.89 \\
+    \texttt{festeja} & 3 & 2.57 & 29.95 & 30.43 & 32.52 & 0.96 \\
+    \texttt{haz una pose de robot} & 3 & 1.58 & 17.02 & 16.99 & 18.60 & 0.94 \\
+    \texttt{haz un gesto de bienvenida} & 3 & 1.39 & 27.19 & 26.78 & 28.58 & 0.96 \\
+    \hline
+    Overall & 12 & 1.91 & 24.67 & 23.26 & 26.57 & 0.94 \\
+    \hline
+  \end{tabular}%
+  }
+\end{table}

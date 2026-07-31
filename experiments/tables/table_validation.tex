@@ -1,0 +1,19 @@
+\begin{table}[!t]
+  \centering
+  \caption{Effect of the joint-limit validation layer. Proposed configurations are the \texttt{set\_robot\_joints} calls issued by the LLM; rejected ones requested at least one angle outside the safe range of Table~\ref{tab:joint_limits} and were never transmitted to the microcontroller. After a rejection the error is returned to the model, which reformulates the configuration.}
+  \label{tab:validation}
+  \resizebox{\columnwidth}{!}{%
+  \begin{tabular}{lccccc}
+    \hline
+    Command & $N$ & Proposed & Accepted & Rejected & Realizations completed \\
+    \hline
+    \texttt{saluda} & 3 & 14 & 8 & 6 & 3/3 \\
+    \texttt{festeja} & 3 & 13 & 3 & 10 & 3/3 \\
+    \texttt{haz una pose de robot} & 3 & 8 & 3 & 5 & 3/3 \\
+    \texttt{haz un gesto de bienvenida} & 3 & 12 & 3 & 9 & 3/3 \\
+    \hline
+    Overall & 12 & 47 & 17 & 30 & 12/12 \\
+    \hline
+  \end{tabular}%
+  }
+\end{table}
