@@ -165,6 +165,22 @@ class PaperTablesTest(unittest.TestCase):
         self.assertEqual(summary["joint_calls_rejected"], 5)
         self.assertAlmostEqual(summary["call_validity_rate"], 4 / 9)
 
+    def test_compact_table_drops_long_configuration_strings(self) -> None:
+        grouped = tables.group_by_command(self.turns)
+        compact = tables.build_generation_table_compact(grouped)
+
+        self.assertIn(r"\label{tab:software_generation}", compact)
+        self.assertIn(r"\begin{table}", compact)
+        self.assertNotIn(r"\begin{table*}", compact)   # una sola columna
+        self.assertNotIn("cabeza:95", compact)          # sin cadenas de pares
+        self.assertLess(len(compact), len(tables.build_generation_table(grouped)))
+
+    def test_examples_snippet_returns_configurations_for_the_text(self) -> None:
+        snippet = tables.build_examples_snippet(tables.group_by_command(self.turns), "saluda")
+
+        self.assertIn(r"cabeza:95, lat\_der:110", snippet)
+        self.assertEqual(snippet.count(r"\texttt{"), 2)
+
     def test_main_writes_fragments_and_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             jsonl = Path(tmpdir) / "trial.jsonl"

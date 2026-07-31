@@ -1,0 +1,28 @@
+\begin{table}[!t]
+  \centering
+  \caption{Actions generated for repeated semantic voice commands. $S$ is the number of successive configurations composing the realization, and \emph{Joints} the number of distinct joints it engages. No repetition reproduced the joint-angle vector of another repetition of the same command. Complete configurations are available in the repository~\cite{inmoov_voice_assistant}.}
+  \label{tab:software_generation}
+  \resizebox{\columnwidth}{!}{%
+  \begin{tabular}{lcccc}
+    \hline
+    Command & Rep. & $S$ & Joints & Joint groups \\
+    \hline
+    \texttt{saluda} & R1 & 4 & 10 & arms, hands, head/neck \\
+     & R2 & 3 & 10 & arms, hands, head/neck \\
+     & R3 & 1 & 10 & arms, hands, head/neck \\
+    \hline
+    \texttt{festeja} & R1 & 1 & 18 & arms, hands, head/neck \\
+     & R2 & 1 & 16 & arms, hands, head/neck \\
+     & R3 & 1 & 16 & arms, hands, head/neck \\
+    \hline
+    \texttt{haz una pose de robot} & R1 & 1 & 18 & arms, hands, head/neck \\
+     & R2 & 1 & 18 & arms, hands, head/neck \\
+     & R3 & 1 & 19 & arms, hands, head/neck \\
+    \hline
+    \texttt{haz un gesto de bienvenida} & R1 & 1 & 18 & arms, hands, head/neck \\
+     & R2 & 1 & 18 & arms, hands, head/neck \\
+     & R3 & 1 & 18 & arms, hands, head/neck \\
+    \hline
+  \end{tabular}%
+  }
+\end{table}

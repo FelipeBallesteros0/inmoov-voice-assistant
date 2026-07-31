@@ -233,6 +233,51 @@ def build_latency_table(
     return "\n".join(lines)
 
 
+def build_generation_table_compact(grouped: "OrderedDict[str, list[dict[str, Any]]]") -> str:
+    """Version de una columna, sin las cadenas largas de pares articulacion-angulo.
+
+    Para el paper con limite de paginas: las configuraciones completas quedan en el
+    repositorio y en el texto solo se citan un par de ejemplos.
+    """
+    lines = [
+        r"\begin{table}[!t]",
+        r"  \centering",
+        r"  \caption{Actions generated for repeated semantic voice commands. $S$ is the number of "
+        r"successive configurations composing the realization, and \emph{Joints} the number of distinct "
+        r"joints it engages. No repetition reproduced the joint-angle vector of another repetition of "
+        r"the same command. Complete configurations are available in the repository~\cite{inmoov_voice_assistant}.}",
+        r"  \label{tab:software_generation}",
+        r"  \resizebox{\columnwidth}{!}{%",
+        r"  \begin{tabular}{lcccc}",
+        r"    \hline",
+        r"    Command & Rep. & $S$ & Joints & Joint groups \\",
+        r"    \hline",
+    ]
+    for command, turns in grouped.items():
+        for position, turn in enumerate(turns):
+            label = f"\\texttt{{{escape_latex(command)}}}" if position == 0 else ""
+            lines.append(
+                f"    {label} & R{turn['repetition']} & {len(configuration_steps(turn))} & "
+                f"{len(activated_joints(turn))} & {format_groups(turn)} \\\\"
+            )
+        lines.append(r"    \hline")
+    lines += [r"  \end{tabular}%", r"  }", r"\end{table}", ""]
+    return "\n".join(lines)
+
+
+def build_examples_snippet(grouped: "OrderedDict[str, list[dict[str, Any]]]", command: str, reps: int = 2) -> str:
+    """Ejemplos de configuraciones para citar en linea dentro del texto."""
+    turns = grouped.get(command, [])[:reps]
+    lines = []
+    for turn in turns:
+        steps = configuration_steps(turn)
+        if not steps:
+            continue
+        pairs = ", ".join(f"{item['joint']}:{item['angle_degrees']}" for item in steps[0])
+        lines.append(f"% {command} R{turn['repetition']}\n\\texttt{{{escape_latex(pairs)}}}\n")
+    return "\n".join(lines)
+
+
 def build_validation_table(grouped: "OrderedDict[str, list[dict[str, Any]]]") -> str:
     """Efecto de la capa de validacion de limites sobre lo que propone el modelo."""
     lines = [
@@ -381,6 +426,12 @@ def main(argv: list[str] | None = None) -> int:
     grouped = group_by_command(accepted)
     args.outdir.mkdir(parents=True, exist_ok=True)
     (args.outdir / "table_software_generation.tex").write_text(build_generation_table(grouped), encoding="utf-8")
+    (args.outdir / "table_software_generation_compact.tex").write_text(
+        build_generation_table_compact(grouped), encoding="utf-8"
+    )
+    (args.outdir / "examples_saluda.tex").write_text(
+        build_examples_snippet(grouped, "saluda"), encoding="utf-8"
+    )
     (args.outdir / "table_validation.tex").write_text(build_validation_table(grouped), encoding="utf-8")
     (args.outdir / "table_latency.tex").write_text(
         build_latency_table(grouped, args.local_exec_seconds), encoding="utf-8"
