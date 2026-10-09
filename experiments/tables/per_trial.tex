@@ -1,0 +1,36 @@
+\begin{table*}[!t]
+  \centering
+  \caption{Per-trial record of the software-level batch (one trial per row; servomotors unpowered). \emph{Prop.}, \emph{Rej.}, and \emph{Acc.} count \setjoints{} proposals, rejections, and accepted commands; \emph{OOR} is the number of out-of-range joint fields in the rejected proposals of the trial (a rejected call may contain several); \emph{Addr.} and \emph{Disp.} are the joints addressed by accepted commands and the joints whose final nominal value differs from home. Latencies in seconds as defined in Section~\ref{sec:latency}; $\hat\eta$ is the non-control remainder of (\ref{eq:noncontrol}). All twelve trials ended with a final model response; none reached the tool-round limit and no API failure occurred.}
+  \label{tab:per_trial}
+  \setlength{\tabcolsep}{4pt}
+  \scriptsize
+  \begin{tabular}{@{}cl cccccc ccccc@{}}
+    \hline
+    \# & Transcript & Prop. & Rej. & Acc. & OOR & Addr. & Disp. & $T_{\mathrm{ASR}}$ & $T_{\mathrm{LLM}}$ & $T_{\mathrm{first}}$ & $T_{\mathrm{turn}}$ & $\hat\eta$ \\
+    \hline
+    \multicolumn{13}{@{}l}{Instruction: \texttt{saluda} (\emph{greet})} \\
+    1 & \texttt{¡Saluda!} & 6 & 2 & 4 & 2 & 10 & 8 & 3.1 & 34.0 & 23.0 & 37.2 & 0.88 \\
+    2 & \texttt{¡Saluda!} & 4 & 1 & 3 & 1 & 10 & 9 & 2.2 & 19.5 & 13.9 & 21.7 & 0.84 \\
+    3 & \texttt{Saluda.} & 4 & 3 & 1 & 6 & 10 & 7 & 0.9 & 20.0 & 19.6 & 20.9 & 0.94 \\
+    \hline
+    \multicolumn{13}{@{}l}{Instruction: \texttt{festeja} (\emph{celebrate})} \\
+    4 & \texttt{¡Festeja!} & 6 & 5 & 1 & 14 & 18 & 13 & 4.7 & 41.5 & 44.3 & 46.1 & 0.97 \\
+    5 & \texttt{Feteja.} & 4 & 3 & 1 & 6 & 16 & 14 & 2.4 & 24.3 & 24.1 & 26.7 & 0.96 \\
+    6 & \texttt{¡Festeja!} & 3 & 2 & 1 & 4 & 16 & 11 & 0.7 & 24.0 & 22.9 & 24.7 & 0.95 \\
+    \hline
+    \multicolumn{13}{@{}l}{Instruction: \texttt{haz una pose de robot} (\emph{strike a robot pose})} \\
+    7 & \texttt{Haz una pose de robot.} & 2 & 1 & 1 & 1 & 18 & 15 & 0.7 & 16.1 & 15.4 & 16.8 & 0.93 \\
+    8 & \texttt{Haz una pose de robot.} & 3 & 2 & 1 & 3 & 18 & 15 & 1.5 & 17.4 & 17.0 & 18.9 & 0.94 \\
+    9 & \texttt{Haz una pose de robot.} & 3 & 2 & 1 & 3 & 19 & 16 & 2.6 & 17.5 & 18.6 & 20.1 & 0.94 \\
+    \hline
+    \multicolumn{13}{@{}l}{Instruction: \texttt{haz un gesto de bienvenida} (\emph{make a welcome gesture})} \\
+    10 & \texttt{Haz un gesto de bienvenida.} & 4 & 3 & 1 & 10 & 18 & 11 & 1.1 & 32.6 & 31.9 & 33.7 & 0.97 \\
+    11 & \texttt{Haz un gesto de bienvenida.} & 4 & 3 & 1 & 10 & 18 & 15 & 1.1 & 25.2 & 24.5 & 26.3 & 0.96 \\
+    12 & \texttt{Haz un gesto de bienvenida.} & 4 & 3 & 1 & 9 & 18 & 15 & 2.0 & 23.7 & 23.9 & 25.8 & 0.95 \\
+    \hline
+    \multicolumn{2}{@{}l}{Total} & 47 & 30 & 17 & 69 & -- & -- & \multicolumn{5}{c@{}}{} \\
+    \multicolumn{2}{@{}l}{Median} & \multicolumn{6}{c}{} & 1.8 & 23.9 & 22.9 & 25.2 & 0.95 \\
+    \multicolumn{2}{@{}l}{Range} & \multicolumn{6}{c}{} & 0.7--4.7 & 16.1--41.5 & 13.9--44.3 & 16.8--46.1 & 0.84--0.97 \\
+    \hline
+  \end{tabular}
+\end{table*}
