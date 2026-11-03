@@ -668,8 +668,8 @@ produce the final reply and play it via text-to-speech</pre>
     <div class="sec-head"><span class="sec-num">→</span>
       <h2 class="t" data-es="Ejecutarlo" data-en="Run it">Ejecutarlo</h2></div>
     <p class="lead">
-      <span class="lang-es">Se controla con un mando Xbox: la primera pulsación de <span class="kbd">A</span> entra en modo conversación, la segunda apaga el programa. Necesita Python 3.11 o superior (desde 3.13, <code>requirements.txt</code> instala <code>audioop-lts</code>, porque <code>audioop</code> salió de la biblioteca estándar), acceso al gamepad y comandos externos de captura/reproducción de audio.</span>
-      <span class="lang-en">It is controlled with an Xbox gamepad: the first press of <span class="kbd">A</span> enters conversation mode, the second shuts it down. Needs Python 3.11 or later (from 3.13 on, <code>requirements.txt</code> installs <code>audioop-lts</code>, since <code>audioop</code> left the standard library), gamepad access, and external audio record/play commands.</span>
+      <span class="lang-es">Necesita Python 3.11 o superior (desde 3.13, <code>requirements.txt</code> instala <code>audioop-lts</code>, porque <code>audioop</code> salió de la biblioteca estándar) y comandos externos de captura/reproducción de audio.</span>
+      <span class="lang-en">Needs Python 3.11 or later (from 3.13 on, <code>requirements.txt</code> installs <code>audioop-lts</code>, since <code>audioop</code> left the standard library) and external audio record/play commands.</span>
     </p>
     <div class="start-grid">
       <div class="code" aria-label="install and run">
@@ -691,8 +691,8 @@ python3 main.py</pre>
       </div>
     </div>
     <p class="note">
-      <span class="lang-es">La API key se resuelve por <code>OPENAI_API_KEY</code>, un archivo local, o importación desde un USB con <code>api_key.txt</code>. Detalles completos en el <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant#readme">README</a>. Para repetir el ensayo con su configuración exacta (umbral VAD 400, <code>whisper-1</code>, <code>joints_only</code> y Enter en lugar del botón A): <code>./experiments/run_trial_rpi.sh</code>.</span>
-      <span class="lang-en">The API key is resolved from <code>OPENAI_API_KEY</code>, a local file, or import from a USB with <code>api_key.txt</code>. Full details in the <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant#readme">README</a>. To repeat the trial with its exact configuration (VAD threshold 400, <code>whisper-1</code>, <code>joints_only</code>, and Enter instead of the A button): <code>./experiments/run_trial_rpi.sh</code>.</span>
+      <span class="lang-es">La API key se resuelve por <code>OPENAI_API_KEY</code>, un archivo local, o importación desde un USB con <code>api_key.txt</code>. Detalles completos en el <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant#readme">README</a>. Para repetir el ensayo con su configuración exacta (umbral VAD 400, <code>whisper-1</code>, <code>joints_only</code> y Enter para iniciar cada turno): <code>./experiments/run_trial_rpi.sh</code>.</span>
+      <span class="lang-en">The API key is resolved from <code>OPENAI_API_KEY</code>, a local file, or import from a USB with <code>api_key.txt</code>. Full details in the <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant#readme">README</a>. To repeat the trial with its exact configuration (VAD threshold 400, <code>whisper-1</code>, <code>joints_only</code>, and Enter to start each turn): <code>./experiments/run_trial_rpi.sh</code>.</span>
     </p>
   </div>
 </section>

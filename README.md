@@ -6,15 +6,15 @@
   <img src="docs/assets/foto.png" alt="Torso humanoide InMoov recomisionado" width="360">
 </p>
 
-Asistente de voz para Raspberry Pi 5 controlado con un mando Xbox 360.
+Asistente de voz para Raspberry Pi 5 que controla el torso InMoov mediante function calling.
 
 Flujo:
 
-1. Primera pulsacion del boton `A`: entra en modo conversacion.
+1. Primera activacion (`GAMEPAD_DEVICE`; con `GAMEPAD_DEVICE=keyboard`, la tecla Enter): entra en modo conversacion.
 2. La Raspberry captura audio local, detecta fin de turno por silencio y envia el audio a OpenAI.
 3. OpenAI transcribe, genera una respuesta y devuelve audio sintetizado.
 4. La Raspberry reproduce la respuesta.
-5. Segunda pulsacion del boton `A`: apaga el programa.
+5. Segunda activacion: apaga el programa.
 
 ## Requisitos practicos
 
@@ -149,7 +149,7 @@ python3 experiments/action_generation_trial.py --reps 3
 
 - `ROBOT_DRY_RUN=1` desacopla la capa de actuacion: la consigna se genera, se valida contra los limites de las 21 articulaciones y se arma el comando serial, pero no se abre el puerto del Arduino Mega. Sirve para medir sin el torso conectado.
 - `ROBOT_TOOLS_MODE=joints_only` deja al modelo solo con la interfaz articular generalizada.
-- `GAMEPAD_DEVICE=keyboard` reemplaza el boton `A` del mando por Enter, util por SSH.
+- `GAMEPAD_DEVICE=keyboard` activa cada turno con Enter, util por SSH.
 
 El harness fija su propio system prompt (describe la interfaz articular y las convenciones del InMoov, sin decir que articulaciones usar para cada comando) salvo que definas `OPENAI_SYSTEM_PROMPT`.
 
@@ -162,7 +162,7 @@ python3 experiments/make_trial_traces.py experiments/data/trial-*.jsonl --outdir
 
 ### Datos del paper
 
-El paper (IEEE ICA-ACCA 2026) cita el commit [`4308110`](https://github.com/FelipeBallesteros0/inmoov-voice-assistant/tree/430811032411b6037176685973319f2329d25cdb). El lote se corrio en la Raspberry Pi 5 con `experiments/run_trial_rpi.sh`, que fija la configuracion exacta: `VAD_THRESHOLD=400` (piso de ruido ~60), `OPENAI_STT_MODEL=whisper-1`, `ROBOT_TOOLS_MODE=joints_only` y Enter en lugar del boton `A`. Se corrio sin `ROBOT_DRY_RUN`: el Arduino Mega estaba conectado y acuso cada comando, pero con los servos sin alimentacion, asi que no hubo movimiento.
+El paper (IEEE ICA-ACCA 2026) cita el commit [`4308110`](https://github.com/FelipeBallesteros0/inmoov-voice-assistant/tree/430811032411b6037176685973319f2329d25cdb). El lote se corrio en la Raspberry Pi 5 con `experiments/run_trial_rpi.sh`, que fija la configuracion exacta: `VAD_THRESHOLD=400` (piso de ruido ~60), `OPENAI_STT_MODEL=whisper-1`, `ROBOT_TOOLS_MODE=joints_only` y Enter para iniciar cada turno. Se corrio sin `ROBOT_DRY_RUN`: el Arduino Mega estaba conectado y acuso cada comando, pero con los servos sin alimentacion, asi que no hubo movimiento.
 
 - `experiments/data/trial-20260730-210209.jsonl`: registro crudo de los 12 turnos (4 comandos x 3 repeticiones).
 - `experiments/tables/per_trial.json` y `per_trial.tex`: trazas por turno (transcripcion, propuestas y su auditoria, comandos aceptados en orden, trayectoria nominal, estado final y tiempos).
