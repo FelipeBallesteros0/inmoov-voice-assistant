@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>InMoov Voice Assistant — Voice-Driven Action Selection via Function Calling</title>
-<meta name="description" content="A recommissioned low-cost InMoov humanoid torso driven by voice: Silero VAD + Whisper ASR + LLM function calling on a Raspberry Pi 5, with a generalized joint-angle interface over 21 controlled joints.">
+<title>InMoov Voice Assistant — Voice-Driven Action Generation Through Function Calling</title>
+<meta name="description" content="A recommissioned low-cost InMoov humanoid torso driven by voice: energy-based VAD + Whisper ASR + LLM function calling on a Raspberry Pi 5, with a generalized joint-angle interface over 21 controlled joints and local range checking.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b4f8a'/%3E%3Cg fill='%23fff'%3E%3Crect x='8' y='13' width='2.6' height='6' rx='1'/%3E%3Crect x='12.5' y='9' width='2.6' height='14' rx='1'/%3E%3Crect x='17' y='6' width='2.6' height='20' rx='1'/%3E%3Crect x='21.5' y='11' width='2.6' height='10' rx='1'/%3E%3C/g%3E%3C/svg%3E">
 <style>
   :root{
@@ -165,6 +165,7 @@
   tbody td{padding:9px 16px; border-bottom:1px solid var(--line)}
   tbody tr:last-child td{border-bottom:0}
   td.num, th.num{text-align:right; font-variant-numeric:tabular-nums; font-family:var(--mono); font-size:13.5px}
+  th.nocaps{text-transform:none; font-size:13.5px}
   td.key{font-family:var(--mono); font-size:13px; color:var(--navy-deep)}
   tr.grp td{background:var(--panel-2); font-weight:700; font-size:12.5px; letter-spacing:.03em;
     text-transform:uppercase; color:var(--muted)}
@@ -189,6 +190,15 @@
   .points p{margin:0; font-size:15.5px}
   .points b{color:var(--ink)}
 
+  /* data links */
+  .datahead{font-size:19px; margin:34px 0 0}
+  .datalist{list-style:none; padding:0; margin:14px 0 0; display:grid; gap:10px; font-size:15px}
+  .datalist li{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; align-items:baseline;
+    padding-bottom:10px; border-bottom:1px solid var(--line)}
+  .datalist li:last-child{border-bottom:0}
+  .datalist .what{color:var(--muted)}
+  .datalist a{font-family:var(--mono); font-size:13px; overflow-wrap:anywhere}
+
   /* getting started */
   .start-grid{display:grid; grid-template-columns:1.1fr .9fr; gap:26px; margin-top:26px; align-items:start}
   .kbd{display:inline-block; font-family:var(--mono); font-size:12px; background:#fff;
@@ -211,6 +221,7 @@
     .cards{grid-template-columns:1fr}
     .figrow{grid-template-columns:1fr}
     .start-grid{grid-template-columns:1fr}
+    .datalist li{grid-template-columns:1fr; gap:2px}
     .tl-body{grid-template-columns:1fr; gap:6px}
     .tl-arrow{transform:rotate(90deg); margin:2px 0}
     .nav-links .only-wide{display:none}
@@ -233,6 +244,7 @@
       <a href="#architecture" class="only-wide t" data-es="Arquitectura" data-en="Architecture">Arquitectura</a>
       <a href="#interface" class="only-wide t" data-es="Interfaz" data-en="Interface">Interfaz</a>
       <a href="#hardware" class="only-wide t" data-es="Hardware" data-en="Hardware">Hardware</a>
+      <a href="#results" class="only-wide t" data-es="Resultados" data-en="Results">Resultados</a>
       <a href="#start" class="only-wide t" data-es="Empezar" data-en="Get started">Empezar</a>
       <button id="lang" class="btn" type="button" aria-label="Switch language"><span class="flag" aria-hidden="true">🇬🇧</span> EN</button>
       <a class="btn btn-solid" href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant" target="_blank" rel="noopener">
@@ -249,12 +261,12 @@
     <div>
       <div class="eyebrow t" data-es="Humanoide InMoov de bajo costo" data-en="Low-cost InMoov humanoid">Humanoide InMoov de bajo costo</div>
       <h1>
-        <span class="lang-es">Selección de acciones por voz mediante llamadas a función en un humanoide InMoov de bajo costo</span>
-        <span class="lang-en">Voice-Driven Action Selection Through Function Calling in a Low-Cost InMoov Humanoid Robot</span>
+        <span class="lang-es">Generación de acciones por voz mediante llamadas a función en un humanoide InMoov de bajo costo</span>
+        <span class="lang-en">Voice-Driven Action Generation Through Function Calling in a Low-Cost InMoov Humanoid Robot</span>
       </h1>
       <p class="sub">
-        <span class="lang-es">Detección de voz local, ASR en la nube y un LLM con <em>function calling</em> que comanda 21 articulaciones sobre una Raspberry Pi 5 y un Arduino Mega.</span>
-        <span class="lang-en">Local voice activity detection, cloud ASR, and an LLM with function calling that drives 21 joints on a Raspberry Pi 5 and an Arduino Mega.</span>
+        <span class="lang-es">Detección de voz local, ASR en la nube y un LLM con <em>function calling</em> que compone comandos para 21 articulaciones, con verificación local de rango, sobre una Raspberry Pi 5 y un Arduino Mega.</span>
+        <span class="lang-en">Local voice activity detection, cloud ASR, and an LLM with function calling that composes commands for 21 joints, with local range checking, on a Raspberry Pi 5 and an Arduino Mega.</span>
       </p>
       <p class="byline">
         <span class="authors">Felipe I. Ballesteros León · Patricio Galarce Acevedo · Macarena E. Monsalve Sepúlveda · Marcelo I. Cerda Muñoz · Lisbel Bárzaga Martell</span><br>
@@ -264,7 +276,7 @@
       <ul class="chips">
         <li>Raspberry Pi 5</li><li>Arduino Mega</li>
         <li><span class="t" data-es="21 articulaciones" data-en="21 joints">21 articulaciones</span></li>
-        <li>Silero VAD</li><li>Whisper ASR</li><li>LLM function calling</li>
+        <li><span class="t" data-es="VAD por energía (RMS)" data-en="Energy VAD (RMS)">VAD por energía (RMS)</span></li><li>Whisper ASR</li><li>LLM function calling</li>
       </ul>
       <div class="hero-cta">
         <a class="btn btn-solid" href="#architecture"><span class="t" data-es="Ver la arquitectura" data-en="See the architecture">Ver la arquitectura</span></a>
@@ -272,10 +284,10 @@
       </div>
     </div>
     <figure class="hero-photo">
-      <img src="assets/foto.png" alt="Recommissioned InMoov humanoid torso with 21 actuated joints" loading="eager">
+      <img src="assets/foto.png" alt="Recommissioned InMoov humanoid torso: 25 installed servomotors, 21 controlled" loading="eager">
       <figcaption>
-        <span class="lang-es">Torso InMoov recomisionado, con 21 articulaciones activas, usado para validar la arquitectura.</span>
-        <span class="lang-en">Recommissioned InMoov torso, 21 actuated joints, used to validate the architecture.</span>
+        <span class="lang-es">Torso InMoov recomisionado: 25 servomotores instalados, 21 controlados por la arquitectura de voz a acción.</span>
+        <span class="lang-en">Recommissioned InMoov torso: 25 installed servomotors, 21 controlled by the voice-to-action architecture.</span>
       </figcaption>
     </figure>
   </div>
@@ -314,8 +326,8 @@
   <div class="measure">
     <div class="eyebrow t" data-es="Resumen" data-en="Abstract">Resumen</div>
     <p class="body">
-      <span class="lang-es">La robótica humanoide open-source, como InMoov, ofrece una vía de bajo costo para investigación y docencia, pero estas plataformas quedan parcialmente inoperativas cuando sus componentes se descontinúan y rara vez exploran comportamientos generados en tiempo de ejecución. Este trabajo presenta el recomisionado del torso de un robot InMoov —reemplazando y validando actuadores y componentes electrónicos descontinuados— y su integración con una arquitectura de voz a acción basada en modelos de lenguaje grandes (LLM). El sistema combina detección de actividad de voz local (Silero VAD), reconocimiento de habla en la nube (Whisper) y <em>function calling</em> guiado por el LLM sobre una Raspberry Pi 5 que se comunica con un microcontrolador. En lugar de exponer funciones de movimiento específicas, una interfaz general de pares articulación-ángulo para 21 articulaciones permite al LLM componer acciones articuladas con validación de límites antes de cada comando.</span>
-      <span class="lang-en">Open-source humanoid robots such as InMoov provide a low-cost platform for research and engineering education, but they often become partially inoperable as original components are discontinued, and are typically limited to predefined motion sequences. This paper presents the recommissioning of an existing InMoov torso — replacing and validating discontinued actuators and electronic components — and its integration with a voice-to-action architecture based on large language models (LLMs). The system combines local voice activity detection (Silero VAD), cloud speech recognition (Whisper), and LLM-driven function calling on a Raspberry Pi 5 that communicates with a microcontroller. Instead of exposing motion-specific functions, a generalized joint-angle interface for 21 controlled joints lets the LLM compose articulated actions through a unified representation, with joint-limit validation before every command.</span>
+      <span class="lang-es">Los robots humanoides <em>open-source</em> como InMoov ofrecen plataformas asequibles para la investigación en robótica y la docencia en ingeniería, pero su comportamiento suele limitarse a bibliotecas de movimientos predefinidos, escritos a mano. Este trabajo presenta una arquitectura de generación de acciones por voz para un torso humanoide InMoov recomisionado, en la que las órdenes habladas se traducen en comandos articulares mediante un modelo de lenguaje grande (LLM) con <em>function calling</em>. En lugar de funciones específicas de movimiento, el LLM recibe una interfaz general de pares articulación-ángulo que abarca las 21 articulaciones controladas. La arquitectura integra detección de actividad de voz (VAD) local, reconocimiento automático de habla (ASR) en la nube con Whisper y una capa de validación que rechaza ángulos fuera de rango antes de la transmisión serial. En doce interacciones a nivel de software, el sistema produjo secuencias distintas de comandos aceptados para cuatro instrucciones habladas; una prueba adicional con alimentación mostró una ejecución cualitativa en el torso. El LLM emitió 47 propuestas de comando articular, de las cuales 30 se rechazaron por exceder los límites articulares, y las doce interacciones se completaron tras reintentos. Cerca del 94 % del turno medido (media 26,6 s, rango 16,8–46,1 s) queda tras restar una duración estimada del comando local. Los resultados respaldan una prueba de concepto en este torso; no se evaluaron la reconocibilidad de los gestos ni la seguridad física.</span>
+      <span class="lang-en">Open-source humanoid robots such as InMoov provide affordable platforms for robotics research and engineering education, yet their behavior is typically restricted to predefined, hand-scripted motion libraries. This paper presents a voice-driven action generation architecture for a recommissioned InMoov humanoid torso, in which spoken commands are translated into joint commands through a large language model (LLM) using function calling. Instead of motion-specific functions, the LLM is given a generalized joint-angle interface spanning the 21 controlled joints. The architecture integrates local voice activity detection (VAD), cloud-based automatic speech recognition (ASR) using Whisper, and a validation layer that rejects out-of-range joint angles before serial transmission. In twelve software-level interactions, the system produced distinct accepted command sequences for four spoken instructions; one additional powered trial showed qualitative execution on the torso. The LLM issued 47 joint-command proposals, of which 30 were rejected for exceeding joint limits, and all twelve interactions completed after retries. About 94% of the measured turn (mean 26.6 s, range 16.8–46.1 s) remains after subtracting an estimated local command duration. The results support a proof of concept on this torso; gesture recognizability and physical safety were not evaluated.</span>
     </p>
     <p class="kw">
       <b class="t" data-es="Palabras clave:" data-en="Index terms:">Palabras clave:</b>
@@ -343,8 +355,8 @@
       </div>
       <div class="card">
         <span class="tag">C3</span>
-        <h3 class="t" data-es="Validación en hardware real" data-en="Validation on real hardware">Validación en hardware real</h3>
-        <p><span class="lang-es">Validación experimental sobre un torso InMoov recomisionado, con evidencia preliminar de generación de acciones no scripteadas a partir de comandos de voz semánticos.</span><span class="lang-en">Experimental validation on a recommissioned InMoov torso, with preliminary evidence of non-scripted action generation from semantic voice commands.</span></p>
+        <h3 class="t" data-es="Caracterización en 12 interacciones" data-en="Characterization over 12 interactions">Caracterización en 12 interacciones</h3>
+        <p><span class="lang-es">Una caracterización de doce interacciones habladas que reporta por separado diversidad de salida, cumplimiento de rango y completitud, más una ejecución cualitativa con alimentación.</span><span class="lang-en">A characterization of twelve spoken interactions that reports output diversity, range compliance, and completion separately, together with one qualitative powered execution.</span></p>
       </div>
     </div>
   </div>
@@ -356,12 +368,16 @@
     <div class="sec-head"><span class="sec-num">II</span>
       <h2 class="t" data-es="Arquitectura del sistema" data-en="System architecture">Arquitectura del sistema</h2></div>
     <p class="lead">
-      <span class="lang-es">El pipeline de voz corre sobre la Raspberry Pi 5. Silero VAD segmenta localmente el turno del usuario; el audio se transcribe con un servicio basado en Whisper y se agrega al historial de diálogo. El LLM decide entonces si responde con texto o invoca una herramienta local mediante <em>function calling</em>.</span>
-      <span class="lang-en">The voice pipeline runs on the Raspberry Pi 5. Silero VAD segments the user's turn locally; the audio is transcribed by a Whisper-based service and appended to the dialog history. The LLM then decides whether to answer with text or invoke a local tool through function calling.</span>
+      <span class="lang-es">El pipeline de voz corre sobre la Raspberry Pi 5. La detección de actividad de voz es local y por energía: el audio se divide en tramas cortas, la energía RMS de cada trama se compara con un umbral configurable, un <em>pre-roll</em> conserva el inicio del habla y una ventana de silencio marca el fin del turno. El audio se transcribe con un servicio basado en Whisper y se agrega al historial de diálogo. El LLM decide entonces si responde con texto o invoca una herramienta local mediante <em>function calling</em>.</span>
+      <span class="lang-en">The voice pipeline runs on the Raspberry Pi 5. Voice activity detection is local and energy-based: the audio is split into short frames, the RMS energy of each frame is compared with a configurable threshold, a pre-roll keeps the onset of speech, and a silence window ends the user turn. The audio is transcribed by a Whisper-based service and appended to the dialog history. The LLM then decides whether to answer with text or invoke a local tool through function calling.</span>
     </p>
     <p class="measure">
       <span class="lang-es">La Pi actúa como capa de orquestación: mantiene el bucle de solicitud/respuesta con el modelo, construye cada solicitud con el historial y los esquemas de herramientas, ejecuta localmente la herramienta solicitada y devuelve su salida —hasta 16 rondas— hasta producir una respuesta final que se envía a síntesis de voz. La evaluación se realiza con comandos hablados en español, el idioma nativo de los usuarios objetivo.</span>
       <span class="lang-en">The Pi acts as the orchestration layer: it keeps the request/response loop with the model, builds each request from the dialog history and the tool schemas, runs any requested tool locally, and returns its output — up to 16 rounds — until a final reply is produced and sent to text-to-speech. The evaluation is conducted with spoken commands in Spanish, the native language of the target users.</span>
+    </p>
+    <p class="note">
+      <span class="lang-es"><b>Configuración evaluada.</b> Micrófono USB a 16 kHz en tramas de 30 ms; umbral RMS de 400 sobre un piso de ruido de ≈ 60, <em>pre-roll</em> de 300 ms y silencio de 1,2 s. ASR: <code>whisper-1</code> en español. LLM: <code>gpt-5.5</code> por la Responses API (consultada el 30 de julio de 2026), con decodificación por defecto y sin semilla. Cada solicitud tiene un límite de 90 s y un turno admite hasta 16 rondas de herramientas; si se exceden, si la respuesta llega vacía o si la API falla, el turno se aborta sin reintento. Los valores por defecto del código son otros (umbral 700, <code>gpt-4o-mini-transcribe</code>): el ensayo los fija en <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/blob/430811032411b6037176685973319f2329d25cdb/experiments/run_trial_rpi.sh"><code>experiments/run_trial_rpi.sh</code></a>.</span>
+      <span class="lang-en"><b>Evaluated configuration.</b> USB microphone at 16 kHz in 30 ms frames; RMS threshold of 400 over a noise floor of about 60, 300 ms pre-roll and 1.2 s silence window. ASR: <code>whisper-1</code> in Spanish. LLM: <code>gpt-5.5</code> through the Responses API (accessed on 30 July 2026), with default decoding and no seed. Requests time out at 90 s and a turn allows at most 16 tool rounds; exceeding them, an empty response, or an API error aborts the turn without retry. The code defaults differ (threshold 700, <code>gpt-4o-mini-transcribe</code>): the trial sets them in <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/blob/430811032411b6037176685973319f2329d25cdb/experiments/run_trial_rpi.sh"><code>experiments/run_trial_rpi.sh</code></a>.</span>
     </p>
     <div class="figrow">
       <figure class="fig">
@@ -374,8 +390,8 @@
       <figure class="fig">
         <img src="assets/llm_loop.png" alt="LLM request/response cycle with local tool (function) calling">
         <figcaption><b>Fig. 2.</b>
-          <span class="lang-es">Ciclo de solicitud/respuesta del LLM con llamadas a herramientas locales. Ante un <code>function_call</code>, la Pi ejecuta la herramienta —incluida la actuación serial del InMoov vía Arduino—, agrega el <code>function_call_output</code> y vuelve a consultar al modelo (≤ 16 rondas).</span>
-          <span class="lang-en">LLM request/response cycle with local tool calling. On a <code>function_call</code>, the Pi runs the tool — including serial actuation of the InMoov via Arduino — appends the <code>function_call_output</code> and re-queries the model (≤ 16 rounds).</span>
+          <span class="lang-es">Ciclo de solicitud/respuesta del LLM con llamadas a herramientas locales, en el modo por defecto (15 herramientas; el modo <code>joints_only</code> del ensayo deja 12, sin las rutinas del robot). Ante un <code>function_call</code>, la Pi ejecuta la herramienta —incluida la actuación serial del InMoov vía Arduino—, agrega el <code>function_call_output</code> y vuelve a consultar al modelo (≤ 16 rondas).</span>
+          <span class="lang-en">LLM request/response cycle with local tool calling, in the default mode (15 tools; the <code>joints_only</code> mode used in the trial leaves 12, without the robot routines). On a <code>function_call</code>, the Pi runs the tool — including serial actuation of the InMoov via Arduino — appends the <code>function_call_output</code> and re-queries the model (≤ 16 rounds).</span>
         </figcaption>
       </figure>
     </div>
@@ -388,16 +404,16 @@
     <div class="sec-head"><span class="sec-num">III</span>
       <h2 class="t" data-es="Interfaz general articulación-ángulo" data-en="Generalized joint-angle interface">Interfaz general articulación-ángulo</h2></div>
     <p class="lead">
-      <span class="lang-es">La acción física se comanda con una única interfaz general en lugar de funciones específicas de movimiento. El modelo ve dos herramientas: <code>get_robot_status</code> para consultar el robot y <code>set_robot_joints</code> para enviar consignas articulares parciales.</span>
-      <span class="lang-en">Physical action is driven through one general interface instead of movement-specific functions. The model sees two tools: <code>get_robot_status</code> to query the robot and <code>set_robot_joints</code> to send partial joint targets.</span>
+      <span class="lang-es">La acción física se comanda con una única interfaz general en lugar de funciones específicas de movimiento. En la configuración evaluada (<code>ROBOT_TOOLS_MODE=joints_only</code>) el modelo ve dos herramientas del robot: <code>get_robot_status</code>, que devuelve la bandera <code>idle</code>/<code>running</code> del firmware (no una pose medida), y <code>set_robot_joints</code>, que envía de 1 a 21 pares articulación-ángulo.</span>
+      <span class="lang-en">Physical action is driven through one general interface instead of movement-specific functions. In the evaluated configuration (<code>ROBOT_TOOLS_MODE=joints_only</code>) the model sees two robot tools: <code>get_robot_status</code>, which returns the firmware's <code>idle</code>/<code>running</code> flag (not a sensed pose), and <code>set_robot_joints</code>, which sends 1 to 21 joint-angle pairs.</span>
     </p>
     <p class="measure">
-      <span class="lang-es">Este diseño desacopla el comando semántico de alto nivel del movimiento de bajo nivel. Cada llamada a <code>set_robot_joints</code> lleva una lista de pares articulación-ángulo; las articulaciones omitidas conservan su posición. Por eso un comando como «saluda» no está atado a una rutina fija: puede traducirse en distintas combinaciones de cabeza, mano y brazo. Antes de llegar al Arduino Mega, la Pi valida nombres, rechaza duplicados y verifica cada ángulo contra los límites de las 21 articulaciones; los pares válidos se serializan al comando compacto <code>ROBOT JOINTS i:ángulo …</code>.</span>
-      <span class="lang-en">This design decouples the high-level semantic command from the low-level motion. Each <code>set_robot_joints</code> call carries a list of joint-angle pairs; omitted joints hold their position. That is why a command like "greet" is not tied to a fixed routine — it can map to different combinations of head, hand and arm. Before reaching the Arduino Mega, the Pi validates names, rejects duplicates and checks every angle against the limits of the 21 joints; valid pairs are serialized to the compact <code>ROBOT JOINTS i:angle …</code> command.</span>
+      <span class="lang-es">Este diseño desacopla el comando semántico de alto nivel del movimiento de bajo nivel. Cada llamada a <code>set_robot_joints</code> lleva una lista de pares articulación-ángulo, restringida por un esquema JSON estricto a los 21 nombres de la Tabla II y a ángulos enteros; las articulaciones omitidas conservan su último ángulo comandado. Por eso un comando como «saluda» no está atado a una rutina fija: puede traducirse en distintas combinaciones de cabeza, mano y brazo. Antes de llegar al Arduino Mega, la Pi valida nombres, rechaza duplicados y verifica cada ángulo contra los límites de las 21 articulaciones; la validación se detiene en la primera violación, que vuelve al LLM como salida de la herramienta, y los pares válidos se serializan al comando compacto <code>ROBOT JOINTS i:ángulo …</code>.</span>
+      <span class="lang-en">This design decouples the high-level semantic command from the low-level motion. Each <code>set_robot_joints</code> call carries a list of joint-angle pairs, restricted by a strict JSON schema to the 21 names of Table II and to integer angles; omitted joints keep their last commanded angle. That is why a command like "greet" is not tied to a fixed routine — it can map to different combinations of head, hand and arm. Before reaching the Arduino Mega, the Pi validates names, rejects duplicates and checks every angle against the limits of the 21 joints; validation stops at the first violation, which is returned to the LLM as tool output, and valid pairs are serialized to the compact <code>ROBOT JOINTS i:angle …</code> command.</span>
     </p>
     <p class="measure">
-      <span class="lang-es">Además del control de movimiento, el asistente expone herramientas para tareas cotidianas —alarmas y notas—, de modo que «pon una alarma en diez minutos» o «anota que …» disparan la herramienta correspondiente en lugar de un movimiento: la misma interfaz de <em>function calling</em> unifica acciones físicas del robot y capacidades de asistente digital. La implementación completa es <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant">pública</a>.</span>
-      <span class="lang-en">Beyond motion control, the assistant exposes tools for everyday tasks — alarms and notes — so that "set an alarm in ten minutes" or "take a note that …" triggers the corresponding tool instead of a robot motion: the same function-calling interface unifies physical robot actions and digital-assistant capabilities. The complete implementation is <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant">publicly available</a>.</span>
+      <span class="lang-es">Además del control de movimiento, el asistente expone herramientas para tareas cotidianas —hora, calculadora, notas y alarmas—, de modo que «pon una alarma en diez minutos» o «anota que …» disparan la herramienta correspondiente en lugar de un movimiento: la misma interfaz de <em>function calling</em> unifica acciones físicas del robot y capacidades de asistente digital. En el modo por defecto (<code>full</code>) el modelo ve además rutinas heredadas del firmware, como abrir una mano o asentir con la cabeza; en la configuración evaluada están desactivadas, de modo que toda acción articulada se compone desde pares articulación-ángulo. La implementación completa, con el <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/blob/430811032411b6037176685973319f2329d25cdb/experiments/action_generation_trial.py#L55-L65"><em>prompt</em> de sistema</a> y los <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/blob/430811032411b6037176685973319f2329d25cdb/voice_assistant/tools.py#L234-L286">esquemas de las herramientas</a>, es <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant">pública</a>.</span>
+      <span class="lang-en">Beyond motion control, the assistant exposes tools for everyday tasks — time, calculator, notes and alarms — so that "set an alarm in ten minutes" or "take a note that …" triggers the corresponding tool instead of a robot motion: the same function-calling interface unifies physical robot actions and digital-assistant capabilities. In the default mode (<code>full</code>) the model also sees legacy routines inherited from the firmware, such as opening a hand or nodding the head; they are disabled in the evaluated configuration, so every articulated action is composed from joint-angle pairs. The complete implementation, including the <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/blob/430811032411b6037176685973319f2329d25cdb/experiments/action_generation_trial.py#L55-L65">system prompt</a> and the <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/blob/430811032411b6037176685973319f2329d25cdb/voice_assistant/tools.py#L234-L286">tool schemas</a>, is <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant">publicly available</a>.</span>
     </p>
 
     <div class="code" aria-label="set_robot_joints example">
@@ -415,30 +431,30 @@
       <div class="code-bar"><span class="fn t" data-es="Orquestación por function calling" data-en="Function-calling orchestration">Orquestación por function calling</span></div>
 <pre class="lang-es"><span class="kw2">requiere</span> transcripción del usuario <span class="op2">u</span>, historial de diálogo <span class="op2">H</span>
 construir solicitud con H, u y esquemas de herramientas
-<span class="kw2">mientras</span> el LLM retorne una llamada de función:
+<span class="kw2">mientras</span> el LLM retorne una llamada de función (≤ 16 rondas):
   <span class="kw2">si</span> la función es <span class="st">get_robot_status</span>:
-      consultar disponibilidad del robot
+      leer la bandera idle/running del firmware
   <span class="kw2">si no, si</span> la función es <span class="st">set_robot_joints</span>:
-      validar articulaciones, duplicados y límites
-      serializar consignas como <span class="st">ROBOT JOINTS</span>
-      enviar comando al Arduino Mega
+      validar nombres, duplicados y límites
+      <span class="kw2">si</span> hay una violación: devolver la primera al LLM, sin transmitir
+      <span class="kw2">si no</span>: serializar como <span class="st">ROBOT JOINTS</span> y enviar al Arduino Mega
   retornar el resultado de la herramienta al LLM
 generar la respuesta final y reproducirla por síntesis de voz</pre>
 <pre class="lang-en"><span class="kw2">require</span> user transcript <span class="op2">u</span>, dialog history <span class="op2">H</span>
 build request with H, u and the tool schemas
-<span class="kw2">while</span> the LLM returns a function call:
+<span class="kw2">while</span> the LLM returns a function call (≤ 16 rounds):
   <span class="kw2">if</span> the function is <span class="st">get_robot_status</span>:
-      query robot availability
+      read the firmware idle/running flag
   <span class="kw2">else if</span> the function is <span class="st">set_robot_joints</span>:
-      validate joints, duplicates and limits
-      serialize targets as <span class="st">ROBOT JOINTS</span>
-      send command to the Arduino Mega
+      validate names, duplicates and limits
+      <span class="kw2">if</span> there is a violation: return the first one to the LLM, not transmitted
+      <span class="kw2">else</span>: serialize as <span class="st">ROBOT JOINTS</span> and send to the Arduino Mega
   return the tool result to the LLM
 produce the final reply and play it via text-to-speech</pre>
     </div>
     <p class="note">
-      <span class="lang-es"><b>La seguridad vive en la validación.</b> Como el LLM puede pedir cualquier consigna, la variabilidad del comportamiento viene de <em>elegir</em> ángulos, no de eliminar restricciones mecánicas.</span>
-      <span class="lang-en"><b>Safety lives in validation.</b> Since the LLM can request any target, behavioral variety comes from <em>choosing</em> angles, not from removing mechanical limits.</span>
+      <span class="lang-es"><b>La validación es lo que hace usable la interfaz.</b> Como el LLM puede pedir cualquier consigna, la variabilidad viene de <em>elegir</em> ángulos, no de quitar límites: en el ensayo, 30 de 47 propuestas pidieron algún ángulo fuera de rango y no se transmitieron. Los límites no cubren colisiones, trayectorias, velocidad, aceleración, fuerza ni paradas de emergencia; la seguridad física no se evaluó.</span>
+      <span class="lang-en"><b>Validation is what makes the interface usable.</b> Since the LLM can request any target, variety comes from <em>choosing</em> angles, not from removing limits: in the trial, 30 of 47 proposals requested an out-of-range angle and were not transmitted. The limits do not address collisions, paths, speed, acceleration, force or emergency stops; physical safety was not evaluated.</span>
     </p>
   </div>
 </section>
@@ -449,92 +465,94 @@ produce the final reply and play it via text-to-speech</pre>
     <div class="sec-head"><span class="sec-num">IV</span>
       <h2 class="t" data-es="Recomisionado del hardware" data-en="Hardware recommissioning">Recomisionado del hardware</h2></div>
     <p class="lead">
-      <span class="lang-es">El torso InMoov ya existía, pero varios actuadores y componentes originales quedaron descontinuados. Se reemplazaron por equivalentes actuales, verificando compatibilidad mecánica y eléctrica articulación por articulación.</span>
-      <span class="lang-en">The InMoov torso already existed, but several original actuators and parts were discontinued. They were replaced with current equivalents, verifying mechanical and electrical fit joint by joint.</span>
+      <span class="lang-es">El torso InMoov ya existía, pero varios actuadores y componentes originales quedaron descontinuados. Se reemplazaron por equivalentes actuales con dos criterios: compatibilidad mecánica con las piezas impresas y un torque nominal igual o mayor que el original. De sus 25 servomotores, 21 están controlados, uno por articulación; las dos rotaciones de muñeca y los dos servos de los ojos están instalados pero no conectados. La puesta en marcha se hizo grupo por grupo: cada actuador fue a <em>home</em>, recorrió sus límites y volvió.</span>
+      <span class="lang-en">The InMoov torso already existed, but several original actuators and parts were discontinued. They were replaced with current equivalents under two criteria: mechanical compatibility with the printed parts and a nominal torque equal to or greater than the original. Of its 25 servomotors, 21 are controlled, one per joint; the two wrist-rotation and two eye servomotors are installed but not connected. Commissioning proceeded group by group: every actuator went to home, swept its limits, and returned.</span>
     </p>
 
     <div class="figrow">
       <figure class="fig">
         <img src="assets/modulos.png" alt="InMoov torso modules: head, jaw, neck, shoulders, biceps, forearms and wrists">
         <figcaption><b>Fig. 3.</b>
-          <span class="lang-es">Módulos articulados del torso: cabeza, mandíbula, ojos, cuello (central y laterales), hombros, bíceps, antebrazos y muñecas.</span>
-          <span class="lang-en">Articulated torso modules: head, jaw, eyes, neck (central and lateral), shoulders, biceps, forearms and wrists.</span>
+          <span class="lang-es">Módulos articulados del torso: cabeza, mandíbula, ojos, cuello (central y laterales), hombros, bíceps, antebrazos y muñecas. Los ojos y las muñecas están instalados pero no conectados.</span>
+          <span class="lang-en">Articulated torso modules: head, jaw, eyes, neck (central and lateral), shoulders, biceps, forearms and wrists. The eyes and wrists are installed but not connected.</span>
         </figcaption>
       </figure>
       <figure class="fig">
         <img src="assets/actuacion.png" alt="Actuation architecture: Raspberry Pi 5 to Arduino Mega to 21 joints">
         <figcaption><b>Fig. 4.</b>
-          <span class="lang-es">Arquitectura de actuación de bajo nivel: la Pi convierte las llamadas de función en comandos seriales compactos y el microcontrolador valida los límites articulares y distribuye las referencias a las 21 articulaciones controladas.</span>
-          <span class="lang-en">Low-level actuation architecture: the Pi converts function calls into compact serial commands, while the microcontroller validates joint limits and distributes references to the 21 controlled joints.</span>
+          <span class="lang-es">Arquitectura de actuación de bajo nivel: la Pi valida y convierte las llamadas de función en comandos seriales compactos; el firmware vuelve a comprobar índices, duplicados y límites y lleva cada servo en una rampa de 45 pasos de 25 ms hacia su referencia. Su respuesta <code>OK JOINTS n</code> confirma el comando y la rampa, no la pose alcanzada, que no se mide.</span>
+          <span class="lang-en">Low-level actuation architecture: the Pi validates function calls and converts them into compact serial commands; the firmware rechecks indices, duplicates and limits and ramps each servo to its reference in 45 steps of 25 ms. Its <code>OK JOINTS n</code> reply confirms the command and the ramp, not the achieved pose, which is not sensed.</span>
         </figcaption>
       </figure>
     </div>
 
     <div class="tablewrap">
       <table>
-        <caption><span class="t" data-es="Tabla I. Actuadores por grupo: servo original y equivalente actual instalado." data-en="Table I. Actuators by group: original servo and current installed equivalent.">Tabla I. Actuadores por grupo: servo original y equivalente actual instalado.</span></caption>
+        <caption><span class="t" data-es="Tabla I. Actuadores del torso recomisionado (torque nominal en kg·cm). Inst.: instalados; Ctrl.: controlados por la interfaz de herramientas. Los dos servos de los ojos, instalados y no conectados, no aparecen (25 instalados en total)." data-en="Table I. Actuators of the recommissioned torso (nominal torque in kg·cm). Inst.: installed; Ctrl.: controlled through the tool interface. The two eye servomotors, installed and not connected, are not listed (25 installed in total).">Tabla I. Actuadores del torso recomisionado (torque nominal en kg·cm). Inst.: instalados; Ctrl.: controlados por la interfaz de herramientas. Los dos servos de los ojos, instalados y no conectados, no aparecen (25 instalados en total).</span></caption>
         <thead>
           <tr>
             <th class="t" data-es="Grupo" data-en="Group">Grupo</th>
             <th class="t" data-es="Servo original (kg·cm)" data-en="Original servo (kg·cm)">Servo original (kg·cm)</th>
             <th class="t" data-es="Servo nuevo (kg·cm)" data-en="New servo (kg·cm)">Servo nuevo (kg·cm)</th>
-            <th class="num">N.º</th>
+            <th class="num">Inst.</th>
+            <th class="num">Ctrl.</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td class="t" data-es="Hombros" data-en="Shoulders">Hombros</td><td>Hitec HS-805BB (≈24)</td><td>DS5180 (80)</td><td class="num">6</td></tr>
-          <tr><td class="t" data-es="Bíceps" data-en="Biceps">Bíceps</td><td>Hitec HS-805BB (≈24)</td><td>DS5180 (80)</td><td class="num">2</td></tr>
-          <tr><td class="t" data-es="Rotación de cabeza" data-en="Head rotation">Rotación de cabeza</td><td>Hitec HS-805BB (≈24)</td><td>DS5180 (80)</td><td class="num">1</td></tr>
-          <tr><td class="t" data-es="Flexión de cuello" data-en="Neck flexion">Flexión de cuello</td><td>HK15298B (20)</td><td>DS5180 (80)</td><td class="num">1</td></tr>
-          <tr><td class="t" data-es="Inclinación lateral de cuello" data-en="Neck lateral tilt">Inclinación lateral de cuello</td><td>HK15298B (20)</td><td class="t" data-es="Estándar (20)" data-en="Standard (20)">Estándar (20)</td><td class="num">2</td></tr>
-          <tr><td class="t" data-es="Mandíbula" data-en="Jaw">Mandíbula</td><td>HK15298B (20)</td><td class="t" data-es="Estándar (20)" data-en="Standard (20)">Estándar (20)</td><td class="num">1</td></tr>
-          <tr><td class="t" data-es="Dedos (manos)" data-en="Fingers">Dedos (manos)</td><td>HK15298B (20)</td><td>DS3225 (25)</td><td class="num">10</td></tr>
-          <tr><td class="t" data-es="Rotación de muñeca" data-en="Wrist rotation">Rotación de muñeca</td><td>MG996R (10)</td><td>DS3225 (25)</td><td class="num">2</td></tr>
+          <tr><td class="t" data-es="Hombros" data-en="Shoulders">Hombros</td><td>Hitec HS-805BB (≈24)</td><td>DS5180 (80)</td><td class="num">4</td><td class="num">4</td></tr>
+          <tr><td class="t" data-es="Bíceps" data-en="Biceps">Bíceps</td><td>Hitec HS-805BB (≈24)</td><td>DS5180 (80)</td><td class="num">2</td><td class="num">2</td></tr>
+          <tr><td class="t" data-es="Rotación de cabeza" data-en="Head rotation">Rotación de cabeza</td><td>Hitec HS-805BB (≈24)</td><td>DS5180 (80)</td><td class="num">1</td><td class="num">1</td></tr>
+          <tr><td class="t" data-es="Flexión de cuello" data-en="Neck flexion">Flexión de cuello</td><td>HK15298B (20)</td><td>DS5180 (80)</td><td class="num">1</td><td class="num">1</td></tr>
+          <tr><td class="t" data-es="Inclinación lateral de cuello" data-en="Neck lateral tilt">Inclinación lateral de cuello</td><td>HK15298B (20)</td><td class="t" data-es="Estándar (20)" data-en="Standard (20)">Estándar (20)</td><td class="num">2</td><td class="num">2</td></tr>
+          <tr><td class="t" data-es="Mandíbula" data-en="Jaw">Mandíbula</td><td>HK15298B (20)</td><td class="t" data-es="Estándar (20)" data-en="Standard (20)">Estándar (20)</td><td class="num">1</td><td class="num">1</td></tr>
+          <tr><td class="t" data-es="Dedos (manos)" data-en="Fingers">Dedos (manos)</td><td>HK15298B (20)</td><td>DS3225 (25)</td><td class="num">10</td><td class="num">10</td></tr>
+          <tr><td class="t" data-es="Rotación de muñeca" data-en="Wrist rotation">Rotación de muñeca</td><td>MG996R (10)</td><td>DS3225 (25)</td><td class="num">2</td><td class="num">0</td></tr>
+          <tr><td><b>Total</b></td><td></td><td></td><td class="num"><b>23</b></td><td class="num"><b>21</b></td></tr>
         </tbody>
       </table>
     </div>
 
     <p class="note">
-      <span class="lang-es"><b>Dimensionamiento.</b> En el peor caso —brazo extendido en horizontal— el conjunto antebrazo-mano se modela como una carga de 1,5 kg a 30 cm del eje del hombro, dando τ = 45 kg·cm; frente a los 80 kg·cm nominales del DS5180, el margen es de ≈ 78 %.</span>
-      <span class="lang-en"><b>Sizing.</b> Worst case — arm fully extended horizontally — the forearm-hand assembly is modeled as a 1.5 kg load at 30 cm from the shoulder axis, giving τ = 45 kg·cm; against the DS5180's 80 kg·cm rating, the margin is ≈ 78 %.</span>
+      <span class="lang-es"><b>Dimensionamiento.</b> Una estimación estática conservadora para el hombro, con el brazo extendido y el antebrazo y la mano aproximados como una carga de 1,5 kg a 30 cm del eje, da τ = 45 kg·cm; los 80 kg·cm nominales del DS5180 quedan ≈ 78 % por encima de esa carga. Es una razón nominal, no un margen de seguridad verificado: no se probaron cargas dinámicas, límites de corriente ni reducción térmica.</span>
+      <span class="lang-en"><b>Sizing.</b> A conservative static estimate for the shoulder, with the arm fully extended and the forearm and hand approximated as a 1.5 kg load at 30 cm from the axis, gives τ = 45 kg·cm; the nominal 80 kg·cm of the DS5180 is about 78% above this estimated static load. This is a nominal ratio rather than a verified safety margin: dynamic loads, current limits, and thermal derating were not tested.</span>
     </p>
 
     <details>
       <summary class="t" data-es="Rangos de las 21 articulaciones (mín / máx / home, en grados)" data-en="Ranges of the 21 joints (min / max / home, degrees)">Rangos de las 21 articulaciones (mín / máx / home, en grados)</summary>
       <div class="tablewrap">
         <table>
-          <caption><span class="t" data-es="Tabla II. Límites articulares y posición home; verificados en el firmware antes de ejecutar." data-en="Table II. Joint limits and home position; checked in firmware before execution.">Tabla II. Límites articulares y posición home; verificados en el firmware antes de ejecutar.</span></caption>
+          <caption><span class="t" data-es="Tabla II. Límites y posición home de las 21 articulaciones controladas (un servo cada una, comandado en ángulo), en grados, con su índice serial. Los usan la Raspberry Pi y el firmware; los comandos fuera de rango se rechazan. En los dedos, 0 es flexión completa." data-en="Table II. Limits and home position of the 21 controlled joints (one servomotor each, commanded in angle), in degrees, with their serial index. Both the Raspberry Pi and the firmware use them; out-of-range commands are rejected. For the fingers, 0 is fully flexed.">Tabla II. Límites y posición home de las 21 articulaciones controladas (un servo cada una, comandado en ángulo), en grados, con su índice serial. Los usan la Raspberry Pi y el firmware; los comandos fuera de rango se rechazan. En los dedos, 0 es flexión completa.</span></caption>
           <thead><tr>
             <th class="t" data-es="Articulación (clave)" data-en="Joint (key)">Articulación (clave)</th>
-            <th class="num">Mín°</th><th class="num">Máx°</th><th class="num">Home°</th>
+            <th class="num t" data-es="Índice" data-en="Index">Índice</th><th class="num t" data-es="Mín°" data-en="Min°">Mín°</th><th class="num t" data-es="Máx°" data-en="Max°">Máx°</th><th class="num">Home°</th>
           </tr></thead>
           <tbody>
-            <tr class="grp"><td colspan="4" class="t" data-es="Hombros" data-en="Shoulders">Hombros</td></tr>
-            <tr><td class="key">lat_izq</td><td class="num">80</td><td class="num">135</td><td class="num">135</td></tr>
-            <tr><td class="key">lat_der</td><td class="num">70</td><td class="num">123</td><td class="num">123</td></tr>
-            <tr><td class="key">rotor_izq</td><td class="num">10</td><td class="num">80</td><td class="num">80</td></tr>
-            <tr><td class="key">rotor_der</td><td class="num">10</td><td class="num">90</td><td class="num">90</td></tr>
-            <tr class="grp"><td colspan="4" class="t" data-es="Bíceps" data-en="Biceps">Bíceps</td></tr>
-            <tr><td class="key">bicep_izq</td><td class="num">75</td><td class="num">140</td><td class="num">90</td></tr>
-            <tr><td class="key">bicep_der</td><td class="num">90</td><td class="num">140</td><td class="num">90</td></tr>
-            <tr class="grp"><td colspan="4" class="t" data-es="Cabeza y cuello" data-en="Head and neck">Cabeza y cuello</td></tr>
-            <tr><td class="key">cabeza</td><td class="num">10</td><td class="num">170</td><td class="num">90</td></tr>
-            <tr><td class="key">mandibula</td><td class="num">10</td><td class="num">70</td><td class="num">10</td></tr>
-            <tr><td class="key">cuello</td><td class="num">50</td><td class="num">180</td><td class="num">60</td></tr>
-            <tr><td class="key">cuello_izq</td><td class="num">70</td><td class="num">150</td><td class="num">110</td></tr>
-            <tr><td class="key">cuello_der</td><td class="num">50</td><td class="num">130</td><td class="num">90</td></tr>
-            <tr class="grp"><td colspan="4" class="t" data-es="Mano izquierda" data-en="Left hand">Mano izquierda</td></tr>
-            <tr><td class="key">pulgar_izq</td><td class="num">0</td><td class="num">140</td><td class="num">140</td></tr>
-            <tr><td class="key">indice_izq</td><td class="num">0</td><td class="num">140</td><td class="num">140</td></tr>
-            <tr><td class="key">medio_izq</td><td class="num">0</td><td class="num">160</td><td class="num">160</td></tr>
-            <tr><td class="key">anular_izq</td><td class="num">0</td><td class="num">130</td><td class="num">130</td></tr>
-            <tr><td class="key">meni_izq</td><td class="num">0</td><td class="num">130</td><td class="num">130</td></tr>
-            <tr class="grp"><td colspan="4" class="t" data-es="Mano derecha" data-en="Right hand">Mano derecha</td></tr>
-            <tr><td class="key">pulgar_der</td><td class="num">0</td><td class="num">120</td><td class="num">120</td></tr>
-            <tr><td class="key">indice_der</td><td class="num">0</td><td class="num">120</td><td class="num">120</td></tr>
-            <tr><td class="key">medio_der</td><td class="num">0</td><td class="num">130</td><td class="num">130</td></tr>
-            <tr><td class="key">anular_der</td><td class="num">0</td><td class="num">170</td><td class="num">170</td></tr>
-            <tr><td class="key">meni_der</td><td class="num">0</td><td class="num">120</td><td class="num">120</td></tr>
+            <tr class="grp"><td colspan="5" class="t" data-es="Hombros" data-en="Shoulders">Hombros</td></tr>
+            <tr><td class="key">lat_izq</td><td class="num">0</td><td class="num">80</td><td class="num">135</td><td class="num">135</td></tr>
+            <tr><td class="key">lat_der</td><td class="num">1</td><td class="num">70</td><td class="num">123</td><td class="num">123</td></tr>
+            <tr><td class="key">rotor_izq</td><td class="num">2</td><td class="num">10</td><td class="num">80</td><td class="num">80</td></tr>
+            <tr><td class="key">rotor_der</td><td class="num">3</td><td class="num">10</td><td class="num">90</td><td class="num">90</td></tr>
+            <tr class="grp"><td colspan="5" class="t" data-es="Bíceps" data-en="Biceps">Bíceps</td></tr>
+            <tr><td class="key">bicep_izq</td><td class="num">4</td><td class="num">75</td><td class="num">140</td><td class="num">90</td></tr>
+            <tr><td class="key">bicep_der</td><td class="num">5</td><td class="num">90</td><td class="num">140</td><td class="num">90</td></tr>
+            <tr class="grp"><td colspan="5" class="t" data-es="Cabeza y cuello" data-en="Head and neck">Cabeza y cuello</td></tr>
+            <tr><td class="key">cabeza</td><td class="num">6</td><td class="num">10</td><td class="num">170</td><td class="num">90</td></tr>
+            <tr><td class="key">mandibula</td><td class="num">7</td><td class="num">10</td><td class="num">70</td><td class="num">10</td></tr>
+            <tr><td class="key">cuello</td><td class="num">8</td><td class="num">50</td><td class="num">180</td><td class="num">60</td></tr>
+            <tr><td class="key">cuello_izq</td><td class="num">9</td><td class="num">70</td><td class="num">150</td><td class="num">110</td></tr>
+            <tr><td class="key">cuello_der</td><td class="num">10</td><td class="num">50</td><td class="num">130</td><td class="num">90</td></tr>
+            <tr class="grp"><td colspan="5" class="t" data-es="Mano izquierda" data-en="Left hand">Mano izquierda</td></tr>
+            <tr><td class="key">pulgar_izq</td><td class="num">11</td><td class="num">0</td><td class="num">140</td><td class="num">140</td></tr>
+            <tr><td class="key">indice_izq</td><td class="num">12</td><td class="num">0</td><td class="num">140</td><td class="num">140</td></tr>
+            <tr><td class="key">medio_izq</td><td class="num">13</td><td class="num">0</td><td class="num">160</td><td class="num">160</td></tr>
+            <tr><td class="key">anular_izq</td><td class="num">14</td><td class="num">0</td><td class="num">130</td><td class="num">130</td></tr>
+            <tr><td class="key">meni_izq</td><td class="num">15</td><td class="num">0</td><td class="num">130</td><td class="num">130</td></tr>
+            <tr class="grp"><td colspan="5" class="t" data-es="Mano derecha" data-en="Right hand">Mano derecha</td></tr>
+            <tr><td class="key">pulgar_der</td><td class="num">16</td><td class="num">0</td><td class="num">120</td><td class="num">120</td></tr>
+            <tr><td class="key">indice_der</td><td class="num">17</td><td class="num">0</td><td class="num">120</td><td class="num">120</td></tr>
+            <tr><td class="key">medio_der</td><td class="num">18</td><td class="num">0</td><td class="num">130</td><td class="num">130</td></tr>
+            <tr><td class="key">anular_der</td><td class="num">19</td><td class="num">0</td><td class="num">170</td><td class="num">170</td></tr>
+            <tr><td class="key">meni_der</td><td class="num">20</td><td class="num">0</td><td class="num">120</td><td class="num">120</td></tr>
           </tbody>
         </table>
       </div>
@@ -542,10 +560,78 @@ produce the final reply and play it via text-to-speech</pre>
   </div>
 </section>
 
+<!-- ============ RESULTS ============ -->
+<section class="section" id="results">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">V</span>
+      <h2 class="t" data-es="Resultados del ensayo" data-en="Trial results">Resultados del ensayo</h2></div>
+    <p class="lead">
+      <span class="lang-es">Cuatro órdenes habladas en español, tres veces cada una, por un hablante en una sala silenciosa: doce turnos con el Arduino Mega conectado y acusando cada comando, pero con los servos sin alimentación, así que no hubo movimiento. Antes de cada turno se reinicia el historial de diálogo (no el estado del firmware) y la respuesta hablada estuvo desactivada. El <em>prompt</em> describe la interfaz y las convenciones del torso, pero no dice qué articulaciones usar en cada orden.</span>
+      <span class="lang-en">Four spoken commands in Spanish, three times each, by one speaker in a quiet room: twelve turns with the Arduino Mega connected and acknowledging every command, but with the servos unpowered, so no motion was produced. The dialog history is reset before each turn (the firmware state is not), and the spoken reply was disabled. The prompt states the interface and the conventions of the torso, but not which joints to use for each command.</span>
+    </p>
+    <div class="cards">
+      <div class="card">
+        <span class="tag">12/12</span>
+        <h3 class="t" data-es="Diversidad" data-en="Diversity">Diversidad</h3>
+        <p><span class="lang-es">Las doce realizaciones son distintas: las trayectorias nominales y los estados finales difieren en los 66 pares, también entre repeticiones de la misma orden. Cada una usó entre 10 y 19 de las 21 articulaciones; para «saluda» el modelo encadenó hasta cuatro configuraciones aceptadas.</span><span class="lang-en">The twelve realizations are pairwise distinct: nominal trajectories and final states differ for all 66 pairs, including repetitions of the same command. Each used between 10 and 19 of the 21 joints; for "greet" the model chained up to four accepted configurations.</span></p>
+      </div>
+      <div class="card">
+        <span class="tag">30/47</span>
+        <h3 class="t" data-es="Validación de rango" data-en="Range validation">Validación de rango</h3>
+        <p><span class="lang-es">De 47 llamadas a <code>set_robot_joints</code>, 17 se aceptaron y 30 se rechazaron por rango; ninguna primera propuesta se aceptó (0/12). Los 69 campos fuera de rango estaban en las seis articulaciones del brazo. Las doce interacciones se completaron tras reintentos.</span><span class="lang-en">Of 47 <code>set_robot_joints</code> calls, 17 were accepted and 30 rejected for range; no first proposal was accepted (0/12). All 69 out-of-range fields were on the six arm joints. All twelve interactions completed after retries.</span></p>
+      </div>
+      <div class="card">
+        <span class="tag"><span class="lang-es">26,6 s</span><span class="lang-en">26.6 s</span></span>
+        <h3 class="t" data-es="Latencia" data-en="Latency">Latencia</h3>
+        <p><span class="lang-es">Un turno dura 26,57 s en promedio (mediana 25,25 s; 16,81–46,13 s): ASR 1,91 s y LLM 24,67 s, porque cada rechazo es otra consulta al modelo. Cerca del 94 % del turno (0,84–0,98 por turno) queda tras restar la duración estimada del comando local, 1,149 s por comando.</span><span class="lang-en">A turn takes 26.57 s on average (median 25.25 s; 16.81–46.13 s): ASR 1.91 s and LLM 24.67 s, since each rejection is another model round trip. About 94% of the turn (0.84–0.98 per turn) remains after subtracting the estimated local command duration, 1.149 s per command.</span></p>
+      </div>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <caption><span class="t" data-es="Tabla III. Por orden (tres turnos cada una): llamadas propuestas, aceptadas y rechazadas; campos fuera de rango en las rechazadas; turnos completados; turno medio y fracción que queda tras restar el comando local." data-en="Table III. Per command (three turns each): proposed, accepted and rejected calls; out-of-range fields in rejected calls; completed turns; mean turn and fraction left after subtracting local command time.">Tabla III. Por orden (tres turnos cada una): llamadas propuestas, aceptadas y rechazadas; campos fuera de rango en las rechazadas; turnos completados; turno medio y fracción que queda tras restar el comando local.</span></caption>
+        <thead><tr>
+          <th class="t" data-es="Orden" data-en="Command">Orden</th><th class="num">N</th>
+          <th class="num t" data-es="Prop." data-en="Prop.">Prop.</th><th class="num t" data-es="Acept." data-en="Acc.">Acept.</th><th class="num t" data-es="Rech." data-en="Rej.">Rech.</th>
+          <th class="num t" data-es="Campos" data-en="Fields">Campos</th><th class="num t" data-es="Compl." data-en="Compl.">Compl.</th>
+          <th class="num nocaps"><span class="lang-es">T<sub>turno</sub> (s)</span><span class="lang-en">T<sub>turn</sub> (s)</span></th><th class="num nocaps">η̂<sub>noncontrol</sub></th>
+        </tr></thead>
+        <tbody>
+            <tr><td><span class="lang-es">«saluda»</span><span class="lang-en"><i>saluda</i> ("greet")</span></td><td class="num">3</td><td class="num">14</td><td class="num">8</td><td class="num">6</td><td class="num">9</td><td class="num">3/3</td><td class="num"><span class="lang-es">26,59</span><span class="lang-en">26.59</span></td><td class="num"><span class="lang-es">0,89</span><span class="lang-en">0.89</span></td></tr>
+            <tr><td><span class="lang-es">«festeja»</span><span class="lang-en"><i>festeja</i> ("celebrate")</span></td><td class="num">3</td><td class="num">13</td><td class="num">3</td><td class="num">10</td><td class="num">24</td><td class="num">3/3</td><td class="num"><span class="lang-es">32,52</span><span class="lang-en">32.52</span></td><td class="num"><span class="lang-es">0,96</span><span class="lang-en">0.96</span></td></tr>
+            <tr><td><span class="lang-es">«haz una pose de robot»</span><span class="lang-en"><i>haz una pose de robot</i> ("strike a robot pose")</span></td><td class="num">3</td><td class="num">8</td><td class="num">3</td><td class="num">5</td><td class="num">7</td><td class="num">3/3</td><td class="num"><span class="lang-es">18,60</span><span class="lang-en">18.60</span></td><td class="num"><span class="lang-es">0,94</span><span class="lang-en">0.94</span></td></tr>
+            <tr><td><span class="lang-es">«haz un gesto de bienvenida»</span><span class="lang-en"><i>haz un gesto de bienvenida</i> ("make a welcome gesture")</span></td><td class="num">3</td><td class="num">12</td><td class="num">3</td><td class="num">9</td><td class="num">29</td><td class="num">3/3</td><td class="num"><span class="lang-es">28,58</span><span class="lang-en">28.58</span></td><td class="num"><span class="lang-es">0,96</span><span class="lang-en">0.96</span></td></tr>
+            <tr><td><b class="t" data-es="Total" data-en="Overall">Total</b></td><td class="num"><b>12</b></td><td class="num"><b>47</b></td><td class="num"><b>17</b></td><td class="num"><b>30</b></td><td class="num"><b>69</b></td><td class="num"><b>12/12</b></td><td class="num"><b><span class="lang-es">26,57</span><span class="lang-en">26.57</span></b></td><td class="num"><b><span class="lang-es">0,94</span><span class="lang-en">0.94</span></b></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="note">
+      <span class="lang-es"><b>Cómo leerlo.</b> La muestra es reducida y no es una caracterización estadística: la tasa de rechazo es un orden de magnitud, y los 47 intentos no son independientes porque los reintentos de un turno dependen entre sí. Que los vectores articulares difieran no implica gestos reconocibles o apropiados, que no se evaluaron; tampoco la seguridad física.</span><span class="lang-en"><b>How to read it.</b> The sample is reduced and is not a statistical characterization: the rejection rate is an order of magnitude, and the 47 attempts are not independent because retries within a turn are dependent. Distinct joint vectors do not imply recognizable or appropriate gestures, which were not assessed; nor was physical safety.</span>
+    </p>
+    <p class="measure">
+      <span class="lang-es"><b>Prueba con alimentación.</b> Con los servos alimentados, el pipeline completo se ejecutó una vez sobre el torso: la configuración generada pasó la validación sin corrección manual y la ejecución fue cualitativamente coherente con la postura comandada, sin bloqueos ni autocolisiones visibles. Es una observación, no un experimento repetido: no se registraron el comando, las llamadas, los ángulos ni los tiempos. <a href="https://youtube.com/shorts/N0vJDsSfT5k">Ver el video</a>.</span><span class="lang-en"><b>Powered trial.</b> With the servos powered, the complete pipeline was executed once on the torso: the generated configuration passed validation without manual correction, and the execution was qualitatively consistent with the commanded posture, with no visible blocking or self-collision. It is one observation, not a repeated experiment: the command, calls, angles and timing were not logged. <a href="https://youtube.com/shorts/N0vJDsSfT5k">Watch the video</a>.</span>
+    </p>
+
+    <h3 class="datahead t" data-es="Datos, prompt, esquemas y trazas (commit 4308110)" data-en="Data, prompt, schemas and traces (commit 4308110)">Datos, prompt, esquemas y trazas (commit 4308110)</h3>
+    <ul class="datalist">
+      <li><span class="what"><span class="lang-es">Registro crudo del ensayo (un turno por línea)</span><span class="lang-en">Raw trial log (one turn per line)</span></span><a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/blob/430811032411b6037176685973319f2329d25cdb/experiments/data/trial-20260730-210209.jsonl">experiments/data/trial-20260730-210209.jsonl</a></li>
+      <li><span class="what"><span class="lang-es">Trazas por turno: transcripción, propuestas, comandos aceptados en orden, trayectoria, estado final y tiempos</span><span class="lang-en">Per-turn traces: transcript, proposals, ordered accepted commands, trajectory, final state and timing</span></span><a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/blob/430811032411b6037176685973319f2329d25cdb/experiments/tables/per_trial.json">experiments/tables/per_trial.json</a></li>
+      <li><span class="what"><span class="lang-es">Resumen y tablas del paper</span><span class="lang-en">Summary and paper tables</span></span><a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/tree/430811032411b6037176685973319f2329d25cdb/experiments/tables">experiments/tables/</a></li>
+      <li><span class="what"><span class="lang-es"><em>Prompt</em> de sistema del ensayo</span><span class="lang-en">Trial system prompt</span></span><a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/blob/430811032411b6037176685973319f2329d25cdb/experiments/action_generation_trial.py#L55-L65">experiments/action_generation_trial.py</a></li>
+      <li><span class="what"><span class="lang-es">Esquemas de <code>get_robot_status</code> y <code>set_robot_joints</code></span><span class="lang-en">Schemas of <code>get_robot_status</code> and <code>set_robot_joints</code></span></span><a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/blob/430811032411b6037176685973319f2329d25cdb/voice_assistant/tools.py#L234-L286">voice_assistant/tools.py</a></li>
+      <li><span class="what"><span class="lang-es">Límites articulares e índices seriales</span><span class="lang-en">Joint limits and serial indices</span></span><a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/blob/430811032411b6037176685973319f2329d25cdb/voice_assistant/robot.py#L128-L148">voice_assistant/robot.py</a></li>
+      <li><span class="what"><span class="lang-es">Lanzador con la configuración exacta del ensayo</span><span class="lang-en">Launcher with the exact trial configuration</span></span><a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/blob/430811032411b6037176685973319f2329d25cdb/experiments/run_trial_rpi.sh">experiments/run_trial_rpi.sh</a></li>
+      <li><span class="what"><span class="lang-es">Scripts que generan tablas y trazas</span><span class="lang-en">Scripts that build the tables and traces</span></span><a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/tree/430811032411b6037176685973319f2329d25cdb/experiments">experiments/</a></li>
+      <li><span class="what"><span class="lang-es">Firmware del Arduino Mega</span><span class="lang-en">Arduino Mega firmware</span></span><a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant/tree/430811032411b6037176685973319f2329d25cdb/arduino/inmoov_robot_controller">arduino/inmoov_robot_controller/</a></li>
+    </ul>
+  </div>
+</section>
+
 <!-- ============ DISCUSSION ============ -->
 <section class="section" id="discussion">
   <div class="wrap">
-    <div class="sec-head"><span class="sec-num">V</span>
+    <div class="sec-head"><span class="sec-num">VI</span>
       <h2 class="t" data-es="Discusión y límites" data-en="Discussion and limits">Discusión y límites</h2></div>
     <ul class="points">
       <li>
@@ -557,12 +643,20 @@ produce the final reply and play it via text-to-speech</pre>
         <p><span class="lang-es"><b>Alternativa sin conexión.</b> Un LLM de pesos abiertos cuantizado en el borde, más un ASR local como Vosk, eliminaría la dependencia de internet y mejoraría la reproducibilidad, a costa de más cómputo a bordo y, típicamente, menor capacidad del modelo.</span><span class="lang-en"><b>Offline alternative.</b> A quantized open-weight LLM on the edge, plus a local ASR engine such as Vosk, would remove the internet dependency and improve reproducibility, at the cost of more onboard compute and typically lower model capability.</span></p>
       </li>
       <li>
+        <span class="m t" data-es="rechazos" data-en="rejections">rechazos</span>
+        <p><span class="lang-es"><b>Costo de los rechazos.</b> La etapa del LLM domina el turno, y cada configuración rechazada agrega otra consulta completa al modelo. Los rechazos podrían reducirse listando el rango de cada articulación en el esquema o en el <em>prompt</em>, o con un filtro local que verifique o, donde se justifique mecánicamente, proyecte las propuestas antes de otra consulta; ninguna de las dos opciones se evaluó.</span><span class="lang-en"><b>Cost of rejections.</b> The LLM stage dominates the turn, and each rejected configuration adds another full round trip to the model. Rejections could be reduced by listing each joint's range in the tool schema or prompt, or by a local predictive filter that checks or, where mechanically justified, projects proposals before another request; neither was evaluated.</span></p>
+      </li>
+      <li>
+        <span class="m">VAD</span>
+        <p><span class="lang-es"><b>Segmentación de voz.</b> El VAD por energía es barato, pero depende de un umbral RMS fijo, calibrado una vez para un micrófono y una sala, y empeora con ruido de fondo o ganancia variable. El reemplazo previsto es un detector neuronal como Silero, que procesa tramas de 30 ms en un hilo de CPU y puede correr en la Raspberry Pi 5; su precisión y su costo en este sistema están por medir.</span><span class="lang-en"><b>Speech segmentation.</b> The energy-based VAD is inexpensive but relies on a fixed RMS threshold, calibrated once for one microphone and room, and degrades under background noise or variable microphone gain. The planned replacement is a neural detector such as Silero, which processes 30 ms chunks on one CPU thread and can run on the Raspberry Pi 5; its accuracy and cost in this system remain to be measured.</span></p>
+      </li>
+      <li>
         <span class="m t" data-es="alcance" data-en="scope">alcance</span>
-        <p><span class="lang-es"><b>Resultados preliminares.</b> Se trata de una prueba de concepto inicial, con pocas pruebas y dependiente de conectividad y de una API propietaria; la cuantificación de latencia y diversidad de acciones está en curso.</span><span class="lang-en"><b>Preliminary results.</b> This is an early proof of concept, with few trials and dependent on connectivity and a proprietary API; quantifying latency and action diversity is in progress.</span></p>
+        <p><span class="lang-es"><b>Alcance.</b> Prueba de concepto en un torso, con cuatro instrucciones, un hablante, una sala silenciosa y tres realizaciones por orden; la evidencia física es una sola observación cualitativa. No se evaluaron la reconocibilidad de los gestos, la precisión de seguimiento, el asentamiento, el desgaste, el riesgo de colisión ni la confiabilidad; la latencia excluye el asentamiento mecánico, y el pipeline depende de servicios propietarios cuyo comportamiento puede cambiar entre versiones.</span><span class="lang-en"><b>Scope.</b> A proof of concept on one torso, with four instructions, one speaker, a quiet room and three realizations per command; the physical evidence is one qualitative observation. Gesture recognizability, tracking accuracy, settling, wear, collision risk and reliability were not assessed; the latency excludes mechanical settling, and the pipeline depends on proprietary services whose behavior may vary across versions.</span></p>
       </li>
       <li>
         <span class="m t" data-es="futuro" data-en="future">futuro</span>
-        <p><span class="lang-es"><b>Trabajo futuro.</b> Dos líneas: (i) una capa de seguridad dedicada que imponga límites de velocidad y aceleración e incorpore anticolisión básica para evitar movimientos bruscos o autocolisiones durante la actuación guiada por el LLM; y (ii) migrar el ASR y el LLM a modelos de pesos abiertos ejecutados en el borde, para una operación completamente offline.</span><span class="lang-en"><b>Future work.</b> Two directions: (i) a dedicated safety layer enforcing velocity and acceleration limits with basic collision avoidance, preventing abrupt movements or self-collisions during LLM-driven actuation; and (ii) migrating the ASR and LLM to open-weight models running on the edge, for fully offline operation.</span></p>
+        <p><span class="lang-es"><b>Trabajo futuro.</b> Pruebas repetidas con alimentación que registren las trayectorias comandadas y medidas, con comandos en el límite, contacto y parada de emergencia; una evaluación a ciegas de la reconocibilidad de los gestos frente a gestos programados; ablaciones del <em>prompt</em> con rangos, la proyección local y la retroalimentación; más instrucciones, hablantes, condiciones de ruido y plataformas, con un modelo fijado o completamente local y VAD neuronal; restricciones de velocidad, aceleración y colisión; y uso en cursos de robótica de pregrado.</span><span class="lang-en"><b>Future work.</b> Repeated powered tests that log commanded and measured trajectories, with borderline commands, contact, and emergency stop; a blinded assessment of gesture recognizability against scripted gestures; ablations of range-aware prompting, local projection, and feedback; more instructions, speakers, noise conditions, and platforms, with a pinned or fully local model and neural voice activity detection; velocity, acceleration, and collision constraints; and use in undergraduate robotics courses.</span></p>
       </li>
     </ul>
   </div>
@@ -574,8 +668,8 @@ produce the final reply and play it via text-to-speech</pre>
     <div class="sec-head"><span class="sec-num">→</span>
       <h2 class="t" data-es="Ejecutarlo" data-en="Run it">Ejecutarlo</h2></div>
     <p class="lead">
-      <span class="lang-es">Se controla con un mando Xbox: la primera pulsación de <span class="kbd">A</span> entra en modo conversación, la segunda apaga el programa. Necesita Python 3.12+, acceso al gamepad y comandos externos de captura/reproducción de audio.</span>
-      <span class="lang-en">It is controlled with an Xbox gamepad: the first press of <span class="kbd">A</span> enters conversation mode, the second shuts it down. Needs Python 3.12+, gamepad access, and external audio record/play commands.</span>
+      <span class="lang-es">Se controla con un mando Xbox: la primera pulsación de <span class="kbd">A</span> entra en modo conversación, la segunda apaga el programa. Necesita Python 3.11 o superior (desde 3.13, <code>requirements.txt</code> instala <code>audioop-lts</code>, porque <code>audioop</code> salió de la biblioteca estándar), acceso al gamepad y comandos externos de captura/reproducción de audio.</span>
+      <span class="lang-en">It is controlled with an Xbox gamepad: the first press of <span class="kbd">A</span> enters conversation mode, the second shuts it down. Needs Python 3.11 or later (from 3.13 on, <code>requirements.txt</code> installs <code>audioop-lts</code>, since <code>audioop</code> left the standard library), gamepad access, and external audio record/play commands.</span>
     </p>
     <div class="start-grid">
       <div class="code" aria-label="install and run">
@@ -597,8 +691,8 @@ python3 main.py</pre>
       </div>
     </div>
     <p class="note">
-      <span class="lang-es">La API key se resuelve por <code>OPENAI_API_KEY</code>, un archivo local, o importación desde un USB con <code>api_key.txt</code>. Detalles completos en el <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant#readme">README</a>.</span>
-      <span class="lang-en">The API key is resolved from <code>OPENAI_API_KEY</code>, a local file, or import from a USB with <code>api_key.txt</code>. Full details in the <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant#readme">README</a>.</span>
+      <span class="lang-es">La API key se resuelve por <code>OPENAI_API_KEY</code>, un archivo local, o importación desde un USB con <code>api_key.txt</code>. Detalles completos en el <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant#readme">README</a>. Para repetir el ensayo con su configuración exacta (umbral VAD 400, <code>whisper-1</code>, <code>joints_only</code> y Enter en lugar del botón A): <code>./experiments/run_trial_rpi.sh</code>.</span>
+      <span class="lang-en">The API key is resolved from <code>OPENAI_API_KEY</code>, a local file, or import from a USB with <code>api_key.txt</code>. Full details in the <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant#readme">README</a>. To repeat the trial with its exact configuration (VAD threshold 400, <code>whisper-1</code>, <code>joints_only</code>, and Enter instead of the A button): <code>./experiments/run_trial_rpi.sh</code>.</span>
     </p>
   </div>
 </section>
@@ -612,16 +706,19 @@ python3 main.py</pre>
       <span class="lang-en">Work from the Department of Electrical Engineering, UTEM. If you find it useful, cite it as:</span>
     </p>
     <pre class="cite">@inproceedings{ballesteros_inmoov_voice,
-  title     = {Voice-Driven Action Selection Through Function Calling
+  title     = {Voice-Driven Action Generation Through Function Calling
                in a Low-Cost InMoov Humanoid Robot},
   author    = {Ballesteros Le\'on, Felipe I. and Galarce Acevedo, Patricio
                and Monsalve Sep\'ulveda, Macarena E. and Cerda Mu\~noz, Marcelo I.
                and B\'arzaga Martell, Lisbel},
-  note      = {Universidad Tecnol\'ogica Metropolitana (UTEM), Santiago, Chile},
-  year      = {2026}
+  booktitle = {IEEE ICA-ACCA 2026},
+  address   = {Concepci\'on, Chile},
+  year      = {2026},
+  note      = {Accepted for presentation}
 }</pre>
     <div class="foot-links">
       <a href="https://github.com/FelipeBallesteros0/inmoov-voice-assistant" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://youtube.com/shorts/N0vJDsSfT5k" target="_blank" rel="noopener">Video</a>
       <a href="https://www.utem.cl" target="_blank" rel="noopener">UTEM</a>
       <a href="https://inmoov.fr" target="_blank" rel="noopener">InMoov project</a>
     </div>

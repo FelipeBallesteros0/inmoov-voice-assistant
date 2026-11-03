@@ -18,7 +18,7 @@ Flujo:
 
 ## Requisitos practicos
 
-- Python 3.12+
+- Python 3.11 o superior. `audioop` salio de la biblioteca estandar en 3.13; desde esa version `requirements.txt` instala `audioop-lts`, que lo reemplaza.
 - Acceso de lectura a `/dev/input/js0`
 - Un comando de captura PCM que escriba audio crudo a `stdout`
 - Un comando de reproduccion WAV
@@ -132,14 +132,15 @@ ROBOT JOINTS 6:90 17:40
 ## Ejecucion
 
 ```bash
-cd /home/felipe/rpi_voice_assistant
+git clone https://github.com/FelipeBallesteros0/inmoov-voice-assistant
+cd inmoov-voice-assistant
 python3 -m pip install -r requirements.txt
 python3 main.py
 ```
 
 ## Experimentos de generacion de acciones
 
-`experiments/action_generation_trial.py` registra que configuracion articular genera el LLM ante comandos hablados repetidos. Cada turno espera Enter, graba hasta detectar silencio y parte con el historial de dialogo vacio, de modo que las repeticiones son independientes.
+`experiments/action_generation_trial.py` registra que configuracion articular genera el LLM ante comandos hablados repetidos. Cada turno espera Enter, graba hasta detectar silencio y parte con el historial de dialogo vacio, de modo que ningun turno ve los anteriores; el estado del firmware (ultimo angulo de cada articulacion) no se reinicia entre turnos.
 
 ```bash
 ROBOT_DRY_RUN=1 ROBOT_TOOLS_MODE=joints_only GAMEPAD_DEVICE=keyboard \
@@ -152,15 +153,26 @@ python3 experiments/action_generation_trial.py --reps 3
 
 El harness fija su propio system prompt (describe la interfaz articular y las convenciones del InMoov, sin decir que articulaciones usar para cada comando) salvo que definas `OPENAI_SYSTEM_PROMPT`.
 
-La salida es un JSONL por turno con transcripcion, llamadas a herramienta, pares articulacion-angulo, comando serial, resultado de la validacion y tiempos (`T_ASR`, `T_LLM`, `T_total`). Para reducirlo a tablas:
+La salida es un JSONL por turno con transcripcion, llamadas a herramienta, pares articulacion-angulo, comando serial, resultado de la validacion y tiempos (`latency_seconds`: `asr`, `llm` y `total`, que es el tiempo hasta el primer comando aceptado; el turno completo es `asr + llm`). Para reducirlo a tablas y a trazas por turno:
 
 ```bash
 python3 experiments/make_paper_tables.py experiments/data/trial-*.jsonl --outdir experiments/tables
+python3 experiments/make_trial_traces.py experiments/data/trial-*.jsonl --outdir experiments/tables
 ```
+
+### Datos del paper
+
+El paper (IEEE ICA-ACCA 2026) cita el commit [`4308110`](https://github.com/FelipeBallesteros0/inmoov-voice-assistant/tree/430811032411b6037176685973319f2329d25cdb). El lote se corrio en la Raspberry Pi 5 con `experiments/run_trial_rpi.sh`, que fija la configuracion exacta: `VAD_THRESHOLD=400` (piso de ruido ~60), `OPENAI_STT_MODEL=whisper-1`, `ROBOT_TOOLS_MODE=joints_only` y Enter en lugar del boton `A`. Se corrio sin `ROBOT_DRY_RUN`: el Arduino Mega estaba conectado y acuso cada comando, pero con los servos sin alimentacion, asi que no hubo movimiento.
+
+- `experiments/data/trial-20260730-210209.jsonl`: registro crudo de los 12 turnos (4 comandos x 3 repeticiones).
+- `experiments/tables/per_trial.json` y `per_trial.tex`: trazas por turno (transcripcion, propuestas y su auditoria, comandos aceptados en orden, trayectoria nominal, estado final y tiempos).
+- `experiments/tables/summary.json` y `table_*.tex`: tablas del paper.
+
+El sitio del proyecto resume los resultados y enlaza cada archivo.
 
 ## Pruebas
 
 ```bash
-cd /home/felipe/rpi_voice_assistant
+cd inmoov-voice-assistant
 python3 -m unittest discover -s tests -v
 ```
